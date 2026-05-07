@@ -1,0 +1,23 @@
+name = "record-reward-backend"
+main = "src/index.ts"
+account_id = "18c511f8336d78be6cf55574b7ebc2d7"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "record-reward-db"
+database_id = "fda290e3-65cf-42b0-bf24-540c4a77cc1c"
+
+[[r2_buckets]]
+binding = "VIDEOS"
+bucket_name = "recordreward-videos"
+
+[vars]
+RESEND_FROM_EMAIL = "hello@recordreward.com"
+
+# Secrets (not stored here — set via: wrangler secret put SECRET_NAME)
+# BETTER_AUTH_SECRET
+# RESEND_API_KEY
+# CLOUDFLARE_ACCOUNT_ID   — your Cloudflare account ID (dashboard > right sidebar)
+# CLOUDFLARE_STREAM_TOKEN — API token with Stream:Edit + Stream:Read permissions

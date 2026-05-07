@@ -1,0 +1,5 @@
+# Copy this file to .dev.vars and fill in real values for local development.
+# .dev.vars is gitignored — never commit real secrets.
+
+BETTER_AUTH_SECRET=change-me-to-a-random-32-char-string
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx

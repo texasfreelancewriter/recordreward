@@ -1,0 +1,545 @@
+# Interview Recording System - Complete Implementation Guide
+
+This guide contains everything you need to replicate the interview recording system in another app.
+
+---
+
+## Overview
+
+The system has 4 main parts:
+1. **Interview Creation** - Admin selects a user and event, questions are auto-generated from templates
+2. **Video Recording** - User answers questions one-by-one, browser records video
+3. **Video Processing** - WebM files are converted to MP4 with thumbnails on upload
+4. **Viewing/Download** - Watch individual clips or full interview, download MP4 files
+
+---
+
+## STEP 1: Install Backend Packages
+
+```bash
+cd backend
+bun add @ffmpeg-installer/ffmpeg @ffprobe-installer/ffprobe fluent-ffmpeg
+bun add -d @types/fluent-ffmpeg
+```
+
+---
+
+## STEP 2: Database Schema (Prisma)
+
+Add these models to your `prisma/schema.prisma`:
+
+```prisma
+// Question templates - admin manages these, they get auto-filled into interviews
+model InterviewQuestionTemplate {
+  id           String   @id @default(cuid())
+  questionText String   // Use [PLACEHOLDER] for dynamic text replacement
+  category     String   // e.g., "post_event" | "preview" - customize for your app
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// The main interview session
+model Interview {
+  id              String             @id @default(cuid())
+  userId          String             // Link to your user model
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId         String             // Link to your event/context model
+  event           Event              @relation(fields: [eventId], references: [id])
+  nextEventId     String?            // Optional: for "preview" questions about next event
+  nextEvent       Event?             @relation("PreviewEvent", fields: [nextEventId], references: [id])
+  status          String             @default("pending") // pending | recorded | published
+  spreadClips     Boolean            @default(true)      // Auto-schedule clips across days
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  questions       InterviewQuestion[]
+  clips           InterviewClip[]
+}
+
+// Questions for a specific interview (generated from templates)
+model InterviewQuestion {
+  id           String         @id @default(cuid())
+  interviewId  String
+  interview    Interview      @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  questionText String
+  category     String
+  sortOrder    Int
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  clip         InterviewClip?
+}
+
+// Video clips - one per question
+model InterviewClip {
+  id                 String            @id @default(cuid())
+  interviewId        String
+  interview          Interview         @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  questionId         String            @unique
+  question           InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  videoUrl           String
+  thumbnailUrl       String?
+  duration           Int?              // seconds
+  scheduledPublishAt DateTime?
+  publishedAt        DateTime?
+  isPublished        Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+}
+```
+
+After adding, run:
+```bash
+bunx prisma db push
+```
+
+---
+
+## STEP 3: Zod Schemas (backend/src/types.ts)
+
+Add these validation schemas:
+
+```typescript
+import { z } from "zod";
+
+// Interview enums
+export const InterviewQuestionCategorySchema = z.enum(["post_event", "preview"]);
+export type InterviewQuestionCategory = z.infer<typeof InterviewQuestionCategorySchema>;
+
+export const InterviewStatusSchema = z.enum(["pending", "recorded", "published"]);
+export type InterviewStatus = z.infer<typeof InterviewStatusSchema>;
+
+// Question Templates
+export const InterviewQuestionTemplateSchema = z.object({
+  id: z.string(),
+  questionText: z.string(),
+  category: InterviewQuestionCategorySchema,
+  sortOrder: z.number(),
+  isActive: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type InterviewQuestionTemplate = z.infer<typeof InterviewQuestionTemplateSchema>;
+
+export const CreateInterviewQuestionTemplateSchema = z.object({
+  questionText: z.string().min(1, "Question text is required"),
+  category: InterviewQuestionCategorySchema,
+  sortOrder: z.number().optional(),
+  isActive: z.boolean().optional(),
+});
+export type CreateInterviewQuestionTemplate = z.infer<typeof CreateInterviewQuestionTemplateSchema>;
+
+export const UpdateInterviewQuestionTemplateSchema = CreateInterviewQuestionTemplateSchema.partial();
+
+// Interview Questions
+export const InterviewQuestionSchema = z.object({
+  id: z.string(),
+  interviewId: z.string(),
+  questionText: z.string(),
+  category: InterviewQuestionCategorySchema,
+  sortOrder: z.number(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type InterviewQuestion = z.infer<typeof InterviewQuestionSchema>;
+
+// Interview Clips
+export const InterviewClipSchema = z.object({
+  id: z.string(),
+  interviewId: z.string(),
+  questionId: z.string(),
+  videoUrl: z.string(),
+  thumbnailUrl: z.string().nullable(),
+  duration: z.number().nullable(),
+  scheduledPublishAt: z.string().nullable(),
+  publishedAt: z.string().nullable(),
+  isPublished: z.boolean(),
+  createdAt: z.string(),
+});
+export type InterviewClip = z.infer<typeof InterviewClipSchema>;
+
+export const CreateInterviewClipSchema = z.object({
+  questionId: z.string(),
+  videoUrl: z.string().min(1, "Video URL is required"),
+  thumbnailUrl: z.string().optional(),
+  duration: z.number().optional(),
+});
+export type CreateInterviewClip = z.infer<typeof CreateInterviewClipSchema>;
+
+// Interview
+export const InterviewSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  eventId: z.string(),
+  nextEventId: z.string().nullable(),
+  status: InterviewStatusSchema,
+  spreadClips: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type Interview = z.infer<typeof InterviewSchema>;
+
+export const CreateInterviewSchema = z.object({
+  userId: z.string().min(1, "User is required"),
+  eventId: z.string().min(1, "Event is required"),
+  spreadClips: z.boolean().optional(),
+  customQuestions: z.array(z.object({
+    questionText: z.string(),
+    category: InterviewQuestionCategorySchema,
+  })).optional(),
+});
+export type CreateInterview = z.infer<typeof CreateInterviewSchema>;
+
+// Interview with all relations (for API responses)
+export const InterviewWithDetailsSchema = InterviewSchema.extend({
+  user: z.object({ id: z.string(), name: z.string() }),
+  event: z.object({ id: z.string(), name: z.string(), date: z.string() }),
+  nextEvent: z.object({ id: z.string(), name: z.string() }).nullable(),
+  questions: z.array(InterviewQuestionSchema.extend({
+    clip: InterviewClipSchema.nullable(),
+  })),
+});
+export type InterviewWithDetails = z.infer<typeof InterviewWithDetailsSchema>;
+```
+
+---
+
+## STEP 4: Video Conversion Utility
+
+Create file: `backend/src/utils/video.ts`
+
+```typescript
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
+import ffprobeInstaller from "@ffprobe-installer/ffprobe";
+import { writeFile, unlink, readFile } from "fs/promises";
+import { join } from "path";
+import { randomUUID } from "crypto";
+import { tmpdir } from "os";
+
+// Set ffmpeg and ffprobe paths from installers
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+ffmpeg.setFfprobePath(ffprobeInstaller.path);
+
+export interface ConversionResult {
+  mp4Buffer: Buffer;
+  thumbnailBuffer: Buffer;
+  duration: number;
+}
+
+/**
+ * Convert WebM video to MP4 using FFmpeg
+ * - Video: H.264 (libx264), baseline profile, level 3.0
+ * - Audio: AAC at 128kbps, 44100Hz stereo
+ * Also generates a thumbnail from the first frame
+ */
+export async function convertWebmToMp4(webmBuffer: Buffer): Promise<ConversionResult> {
+  const tempDir = tmpdir();
+  const id = randomUUID();
+  const inputPath = join(tempDir, `${id}.webm`);
+  const outputPath = join(tempDir, `${id}.mp4`);
+  const thumbnailPath = join(tempDir, `${id}.jpg`);
+
+  try {
+    // Write input file
+    await writeFile(inputPath, webmBuffer);
+
+    // Get duration and convert to MP4
+    const duration = await convertVideo(inputPath, outputPath);
+
+    // Generate thumbnail from first frame
+    await generateThumbnail(outputPath, thumbnailPath);
+
+    // Read output files
+    const mp4Buffer = await readFile(outputPath);
+    const thumbnailBuffer = await readFile(thumbnailPath);
+
+    return {
+      mp4Buffer,
+      thumbnailBuffer,
+      duration: Math.round(duration),
+    };
+  } finally {
+    // Cleanup temp files
+    await Promise.all([
+      unlink(inputPath).catch(() => {}),
+      unlink(outputPath).catch(() => {}),
+      unlink(thumbnailPath).catch(() => {}),
+    ]);
+  }
+}
+
+function convertVideo(inputPath: string, outputPath: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let duration = 0;
+
+    ffmpeg(inputPath)
+      .outputOptions([
+        "-c:v libx264",
+        "-profile:v baseline",
+        "-level 3.0",
+        "-pix_fmt yuv420p",
+        "-c:a aac",
+        "-b:a 128k",
+        "-ar 44100",
+        "-ac 2",
+        "-movflags +faststart",
+      ])
+      .on("codecData", (data) => {
+        if (data.duration) {
+          const parts = data.duration.split(":");
+          if (parts.length === 3) {
+            duration = parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+          }
+        }
+      })
+      .on("end", () => resolve(duration))
+      .on("error", (err) => reject(new Error(`FFmpeg conversion error: ${err.message}`)))
+      .save(outputPath);
+  });
+}
+
+function generateThumbnail(videoPath: string, thumbnailPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    ffmpeg(videoPath)
+      .screenshots({
+        count: 1,
+        folder: thumbnailPath.substring(0, thumbnailPath.lastIndexOf("/")),
+        filename: thumbnailPath.substring(thumbnailPath.lastIndexOf("/") + 1),
+        size: "640x?",
+      })
+      .on("end", () => resolve())
+      .on("error", (err) => reject(new Error(`Thumbnail generation error: ${err.message}`)));
+  });
+}
+```
+
+---
+
+## STEP 5: Video Upload Endpoint
+
+Add to your `backend/src/index.ts`:
+
+```typescript
+import { convertWebmToMp4 } from "./utils/video";
+
+// Video upload endpoint with WebM to MP4 conversion
+app.post("/api/upload/video", async (c) => {
+  const formData = await c.req.formData();
+  const file = formData.get("file");
+
+  if (!file || !(file instanceof File)) {
+    return c.json({ error: { message: "No file provided", code: "NO_FILE" } }, 400);
+  }
+
+  try {
+    const isWebm = file.type === "video/webm" || file.name.endsWith(".webm");
+
+    if (isWebm) {
+      console.log(`Converting WebM to MP4: ${file.name}`);
+      const arrayBuffer = await file.arrayBuffer();
+      const webmBuffer = Buffer.from(arrayBuffer);
+      const { mp4Buffer, thumbnailBuffer, duration } = await convertWebmToMp4(webmBuffer);
+
+      // Upload converted MP4 (use your storage solution)
+      const mp4File = new File([mp4Buffer], file.name.replace(/\.webm$/i, ".mp4"), { type: "video/mp4" });
+      const videoResult = await yourStorage.upload(mp4File);
+
+      // Upload thumbnail
+      const thumbnailFile = new File([thumbnailBuffer], file.name.replace(/\.webm$/i, "-thumb.jpg"), { type: "image/jpeg" });
+      const thumbnailResult = await yourStorage.upload(thumbnailFile);
+
+      return c.json({
+        data: { ...videoResult, thumbnailUrl: thumbnailResult.url, duration },
+      });
+    }
+
+    // Non-WebM, upload directly
+    const result = await yourStorage.upload(file);
+    return c.json({ data: result });
+  } catch (error) {
+    console.error("Video upload error:", error);
+    return c.json({ error: { message: "Video upload failed", code: "UPLOAD_FAILED" } }, 500);
+  }
+});
+
+// Download proxy (for downloading files from external storage)
+app.get("/api/download", async (c) => {
+  const url = c.req.query("url");
+  const filename = c.req.query("filename") || "download";
+
+  if (!url) {
+    return c.json({ error: { message: "URL required", code: "NO_URL" } }, 400);
+  }
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return c.json({ error: { message: "Failed to fetch file", code: "FETCH_FAILED" } }, 502);
+    }
+
+    const blob = await response.blob();
+    const buffer = await blob.arrayBuffer();
+
+    return new Response(buffer, {
+      headers: {
+        "Content-Type": blob.type || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Length": String(blob.size),
+      },
+    });
+  } catch (error) {
+    return c.json({ error: { message: "Download failed", code: "DOWNLOAD_FAILED" } }, 500);
+  }
+});
+```
+
+---
+
+## STEP 6: Frontend Upload Function
+
+Create file: `webapp/src/lib/upload.ts`
+
+```typescript
+export interface UploadResult {
+  id: string;
+  url: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+export interface VideoUploadResult extends UploadResult {
+  thumbnailUrl?: string;
+  duration?: number;
+}
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+export async function uploadFile(file: File): Promise<UploadResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${BACKEND_URL}/api/upload`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || "Upload failed");
+  return data.data;
+}
+
+export async function uploadVideo(file: File): Promise<VideoUploadResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${BACKEND_URL}/api/upload/video`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || "Upload failed");
+  return data.data;
+}
+```
+
+---
+
+## STEP 7: Frontend Components
+
+You need 4 main frontend files. Copy these from the current app:
+
+### File Locations:
+1. `webapp/src/components/interviews/InterviewsTab.tsx` - Lists pending/completed interviews
+2. `webapp/src/components/interviews/NewInterviewModal.tsx` - Create interview modal
+3. `webapp/src/pages/admin/RecordInterviewPage.tsx` - Camera recording interface
+4. `webapp/src/pages/admin/ViewInterviewPage.tsx` - View/download clips
+
+### Key Things to Customize:
+- Replace `DriverProfile` with your user model
+- Replace `SeriesSchedule` with your event model
+- Update the `[TRACK]` placeholder to whatever makes sense for your app
+- Update the API routes to match your backend
+
+---
+
+## STEP 8: Routes Setup
+
+Add to your `App.tsx`:
+
+```tsx
+import { RecordInterviewPage } from "./pages/admin/RecordInterviewPage";
+import { ViewInterviewPage } from "./pages/admin/ViewInterviewPage";
+
+// In your routes:
+<Route path="/admin/interview/:interviewId/record" element={<RecordInterviewPage />} />
+<Route path="/admin/interview/:interviewId" element={<ViewInterviewPage />} />
+```
+
+---
+
+## STEP 9: Seed Question Templates
+
+Add to your `prisma/seed.ts`:
+
+```typescript
+// Seed interview question templates
+const templates = [
+  { questionText: "How did the [EVENT] go overall?", category: "post_event", sortOrder: 0 },
+  { questionText: "What was the biggest challenge at [EVENT]?", category: "post_event", sortOrder: 1 },
+  { questionText: "What did you learn from [EVENT]?", category: "post_event", sortOrder: 2 },
+  { questionText: "What are you looking forward to at [NEXT_EVENT]?", category: "preview", sortOrder: 3 },
+  { questionText: "How are you preparing for [NEXT_EVENT]?", category: "preview", sortOrder: 4 },
+];
+
+for (const template of templates) {
+  await prisma.interviewQuestionTemplate.upsert({
+    where: { id: `template-${template.sortOrder}` },
+    update: template,
+    create: { id: `template-${template.sortOrder}`, ...template },
+  });
+}
+```
+
+---
+
+## Key Features Summary
+
+1. **Question Templates** - Admin creates reusable templates with placeholders
+2. **Auto-Generate Questions** - When creating interview, questions fill in from templates
+3. **Edit Questions** - User can edit/delete questions before recording
+4. **Continuous Recording** - Press "Start Recording", then "Next Question" advances automatically
+5. **Retake Support** - Can retake any question while recording
+6. **WebM to MP4 Conversion** - Browser records WebM, backend converts to social-media-ready MP4
+7. **Thumbnail Generation** - Auto-generates thumbnail from first frame
+8. **Auto-Scheduling** - Clips can be spread across weekdays (Mon-Fri)
+9. **Download Proxy** - Backend proxies downloads to work around CORS
+10. **Full Interview Playback** - Sequential playback with custom controls
+
+---
+
+## Files Summary
+
+| File | Purpose |
+|------|---------|
+| `backend/src/utils/video.ts` | FFmpeg WebM to MP4 conversion |
+| `backend/src/routes/interviews.ts` | All interview CRUD API endpoints |
+| `backend/src/types.ts` | Zod validation schemas |
+| `webapp/src/lib/upload.ts` | Frontend file/video upload functions |
+| `webapp/src/components/interviews/InterviewsTab.tsx` | Interview list component |
+| `webapp/src/components/interviews/NewInterviewModal.tsx` | Create interview modal |
+| `webapp/src/pages/admin/RecordInterviewPage.tsx` | Recording interface |
+| `webapp/src/pages/admin/ViewInterviewPage.tsx` | View/download interface |
+
+---
+
+## Tips for Replication
+
+1. **Start with the database** - Get your Prisma models set up first
+2. **Get video conversion working** - Test the FFmpeg utility independently
+3. **Build the backend API** - Copy the interviews router and adapt it
+4. **Build frontend step-by-step** - Start with InterviewsTab, then NewInterviewModal, then RecordInterviewPage, then ViewInterviewPage
+5. **Test the recording flow** - Make sure all clips are captured (watch out for async state issues!)

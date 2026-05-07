@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Better Auth models
+model User {
+  id            String      @id
+  name          String
+  email         String      @unique
+  emailVerified Boolean     @default(false)
+  image         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  interviews    Interview[]
+  orgMembers    OrgMember[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Interview System Models
+
+// Question templates - admin manages these, they get auto-filled into interviews
+model InterviewQuestionTemplate {
+  id           String   @id @default(cuid())
+  questionText String
+  category     String   // "post_event" | "preview" | "general"
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// The main interview session
+model Interview {
+  id             String              @id @default(cuid())
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization?       @relation(fields: [organizationId], references: [id])
+  title          String              @default("Interview")
+  status         String              @default("pending") // pending | recorded | published | pending_approval | dismissed
+  spreadClips    Boolean             @default(true)
+  starRating     Int?                // 1-4 stars, null = not rated
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  questions      InterviewQuestion[]
+  clips          InterviewClip[]
+}
+
+// Questions for a specific interview (generated from templates)
+model InterviewQuestion {
+  id           String          @id @default(cuid())
+  interviewId  String
+  interview    Interview       @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  questionText String
+  category     String
+  sortOrder    Int
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  clip         InterviewClip?
+}
+
+model KioskConfig {
+  id        Int      @id @default(1)
+  data      String   // JSON blob
+  updatedAt DateTime @updatedAt
+}
+
+// Multi-tenant Organization models
+
+model Organization {
+  id          String          @id @default(cuid())
+  name        String
+  slug        String          @unique
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  members     OrgMember[]
+  kioskConfig OrgKioskConfig?
+  interviews  Interview[]
+}
+
+model OrgMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String       @default("owner")
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+}
+
+model OrgKioskConfig {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  data           String       // JSON blob
+  updatedAt      DateTime     @updatedAt
+}
+
+// Video clips - one per question
+model InterviewClip {
+  id                 String            @id @default(cuid())
+  interviewId        String
+  interview          Interview         @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  questionId         String            @unique
+  question           InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  videoUrl           String
+  thumbnailUrl       String?
+  duration           Int?              // seconds
+  scheduledPublishAt DateTime?
+  publishedAt        DateTime?
+  isPublished        Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+}

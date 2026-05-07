@@ -1,0 +1,92 @@
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import type { Env, AppVariables } from "../env";
+import type { DbOrganization, DbOrgKioskConfig } from "../lib/db";
+
+const organizationsRouter = new Hono<{ Bindings: Env; Variables: AppVariables }>();
+
+organizationsRouter.post(
+  "/",
+  zValidator(
+    "json",
+    z.object({
+      name: z.string().min(1),
+      slug: z.string().min(1).regex(/^[a-z0-9-]+$/),
+    })
+  ),
+  async (c) => {
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
+    }
+
+    const { name, slug } = c.req.valid("json");
+    const now = new Date().toISOString();
+
+    const existing = await c.env.DB.prepare(
+      "SELECT id FROM Organization WHERE slug = ?"
+    ).bind(slug).first();
+    if (existing) {
+      return c.json({ error: { message: "Slug already taken", code: "SLUG_TAKEN" } }, 409);
+    }
+
+    const orgId = crypto.randomUUID();
+    const memberId = crypto.randomUUID();
+    const configId = crypto.randomUUID();
+
+    await c.env.DB.batch([
+      c.env.DB.prepare(
+        "INSERT INTO Organization (id, name, slug, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)"
+      ).bind(orgId, name, slug, now, now),
+      c.env.DB.prepare(
+        "INSERT INTO OrgMember (id, organizationId, userId, role, createdAt) VALUES (?, ?, ?, 'owner', ?)"
+      ).bind(memberId, orgId, user.id, now),
+      c.env.DB.prepare(
+        "INSERT INTO OrgKioskConfig (id, organizationId, data, updatedAt) VALUES (?, ?, '{}', ?)"
+      ).bind(configId, orgId, now),
+    ]);
+
+    const [org, kioskConfig, members] = await Promise.all([
+      c.env.DB.prepare("SELECT * FROM Organization WHERE id = ?").bind(orgId).first<DbOrganization>(),
+      c.env.DB.prepare("SELECT * FROM OrgKioskConfig WHERE organizationId = ?").bind(orgId).first<DbOrgKioskConfig>(),
+      c.env.DB.prepare("SELECT * FROM OrgMember WHERE organizationId = ?").bind(orgId).all(),
+    ]);
+
+    return c.json({ data: { ...org, kioskConfig, members: members.results ?? [] } });
+  }
+);
+
+organizationsRouter.get("/mine", async (c) => {
+  const user = c.get("user");
+
+  if (!user) {
+    const { results } = await c.env.DB.prepare(
+      "SELECT o.*, k.id AS kId, k.data AS kData, k.updatedAt AS kUpdatedAt FROM Organization o LEFT JOIN OrgKioskConfig k ON k.organizationId = o.id"
+    ).all<DbOrganization & { kId: string | null; kData: string | null; kUpdatedAt: string | null }>();
+
+    return c.json({
+      data: (results ?? []).map((o) => ({
+        id: o.id, name: o.name, slug: o.slug, createdAt: o.createdAt, updatedAt: o.updatedAt,
+        kioskConfig: o.kId ? { id: o.kId, organizationId: o.id, data: o.kData, updatedAt: o.kUpdatedAt } : null,
+      })),
+    });
+  }
+
+  const { results: memberships } = await c.env.DB.prepare(
+    `SELECT o.*, m.role, k.id AS kId, k.data AS kData, k.updatedAt AS kUpdatedAt
+     FROM OrgMember m
+     JOIN Organization o ON o.id = m.organizationId
+     LEFT JOIN OrgKioskConfig k ON k.organizationId = o.id
+     WHERE m.userId = ?`
+  ).bind(user.id).all<DbOrganization & { role: string; kId: string | null; kData: string | null; kUpdatedAt: string | null }>();
+
+  return c.json({
+    data: (memberships ?? []).map((o) => ({
+      id: o.id, name: o.name, slug: o.slug, role: o.role, createdAt: o.createdAt, updatedAt: o.updatedAt,
+      kioskConfig: o.kId ? { id: o.kId, organizationId: o.id, data: o.kData, updatedAt: o.kUpdatedAt } : null,
+    })),
+  });
+});
+
+export { organizationsRouter };
