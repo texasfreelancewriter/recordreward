@@ -13,6 +13,11 @@ import { invitesRouter } from "./routes/invites";
 
 const app = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
+app.onError((err, c) => {
+  console.error("[error]", err);
+  return c.json({ error: { message: err.message, stack: err.stack } }, 500);
+});
+
 const allowedOrigins = [
   /^http:\/\/localhost(:\d+)?$/,
   /^http:\/\/127\.0\.0\.1(:\d+)?$/,

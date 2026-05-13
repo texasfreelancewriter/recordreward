@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import RecordRewardLanding from "./pages/RecordRewardLanding";
 import Dashboard from "./pages/Dashboard";
 import ViewInterviewPage from "./pages/interviews/ViewInterviewPage";
 import RecordInterviewPage from "./pages/interviews/RecordInterviewPage";
@@ -45,7 +46,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<RecordRewardLanding />} />
             <Route path="/login" element={<Login />} />
             <Route path="/setup" element={<OrgSetup />} />
             <Route path="/invite/:token" element={<AcceptInvitePage />} />

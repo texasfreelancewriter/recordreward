@@ -32,7 +32,7 @@ publicKioskRouter.post(
       email: z.string().email().optional(),
       questionText: z.string().min(1),
       category: z.enum(["post_event", "preview", "general"]),
-      starRating: z.number().int().min(1).max(4).optional(),
+      starRating: z.number().int().min(1).max(5).optional(),
     })
   ),
   async (c) => {

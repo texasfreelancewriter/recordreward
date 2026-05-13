@@ -4,7 +4,7 @@ import { Loader2, CheckCircle, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 import { uploadVideo } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
-import { getConfig, TemplateConfig } from "@/lib/template-config";
+import { getConfig, DEFAULT_CONFIG, TemplateConfig } from "@/lib/template-config";
 
 type PageState = "idle" | "starting" | "previewing" | "recording" | "saving" | "complete" | "not_found";
 
@@ -28,7 +28,11 @@ const KioskPage = () => {
     if (!slug) return;
     api.get<KioskConfig>(`/api/public/kiosk/${slug}`)
       .then((c) => {
-        if (c) setConfig(c);
+        if (c) setConfig({
+          ...DEFAULT_CONFIG,
+          ...c,
+          starRatingEnabled: c.starRatingEnabled ?? true,
+        });
         setConfigReady(true);
       })
       .catch((err: unknown) => {
@@ -312,7 +316,7 @@ const KioskPage = () => {
         ) : null}
 
         {/* Rate Your Visit row — visible on idle/starting screens only when enabled */}
-        {(config.starRatingEnabled ?? false) && (pageState === "idle" || pageState === "starting") ? (
+        {(pageState === "idle" || pageState === "starting") ? (
           <>
             <div className="flex items-center justify-between px-5 py-2.5">
               <span
@@ -321,7 +325,7 @@ const KioskPage = () => {
                 Rate Your Visit
               </span>
               <div className="flex gap-1.5">
-                {[1, 2, 3, 4].map((star) => (
+                {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
                     onClick={() => setStarRating(starRating === star ? 0 : star)}

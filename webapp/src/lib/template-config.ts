@@ -33,7 +33,7 @@ export const DEFAULT_CONFIG: TemplateConfig = {
   rewardEnabled: true,
   heroText: "Tell Us About Your Visit",
   emailEnabled: true,
-  starRatingEnabled: false,
+  starRatingEnabled: true,
   buttons: [
     {
       id: "first_time",
@@ -65,7 +65,7 @@ export function getConfig(): TemplateConfig {
         rewardEnabled: parsed.rewardEnabled ?? true,
         heroText: parsed.heroText ?? DEFAULT_CONFIG.heroText,
         emailEnabled: parsed.emailEnabled ?? true,
-        starRatingEnabled: parsed.starRatingEnabled ?? false,
+        starRatingEnabled: parsed.starRatingEnabled ?? true,
         buttons: (parsed.buttons && parsed.buttons.length > 0) ? parsed.buttons : DEFAULT_CONFIG.buttons,
       };
     }
@@ -90,7 +90,7 @@ export async function fetchServerConfig(orgId?: string): Promise<TemplateConfig 
     const url = orgId ? `${API_BASE}/api/kiosk-config?orgId=${orgId}` : `${API_BASE}/api/kiosk-config`;
     const res = await fetch(url, { credentials: "include" });
     const json = await res.json();
-    if (json.data) return { ...DEFAULT_CONFIG, ...json.data, rewardEnabled: json.data.rewardEnabled ?? true, heroText: json.data.heroText ?? DEFAULT_CONFIG.heroText, emailEnabled: json.data.emailEnabled ?? true, starRatingEnabled: json.data.starRatingEnabled ?? false, buttons: json.data.buttons ?? DEFAULT_CONFIG.buttons };
+    if (json.data) return { ...DEFAULT_CONFIG, ...json.data, rewardEnabled: json.data.rewardEnabled ?? true, heroText: json.data.heroText ?? DEFAULT_CONFIG.heroText, emailEnabled: json.data.emailEnabled ?? true, starRatingEnabled: json.data.starRatingEnabled ?? true, buttons: json.data.buttons ?? DEFAULT_CONFIG.buttons };
     return null;
   } catch { return null; }
 }

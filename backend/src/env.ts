@@ -4,6 +4,7 @@ export interface Env {
   BETTER_AUTH_SECRET: string;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
+  ANTHROPIC_API_KEY: string;
 }
 
 // Better Auth returns Date objects for timestamps; routes only need id/name/email

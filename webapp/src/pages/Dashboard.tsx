@@ -234,7 +234,7 @@ function SettingsTab() {
 
   function handleOrgSwitch(orgId: string) {
     setSelectedOrgId(orgId);
-    queryClient.invalidateQueries({ queryKey: ["orgs"] });
+    queryClient.setQueryData(["selectedOrgId"], orgId);
     const newOrg = orgs?.find((o) => o.id === orgId);
     if (newOrg) {
       fetchServerConfig(newOrg.id).then((c) => {
@@ -278,37 +278,6 @@ function SettingsTab() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Business Selector — only show switcher if owner with multiple orgs */}
-      {orgs && orgs.length > 1 && isOwner ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Your Businesses</CardTitle>
-            <CardDescription>Switch between businesses or add a new one.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {orgs.map((o) => (
-              <button
-                key={o.id}
-                onClick={() => handleOrgSwitch(o.id)}
-                className={`w-full text-left px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
-                  org?.id === o.id
-                    ? "bg-primary/10 border-primary/50 text-primary"
-                    : "bg-muted/40 border-border hover:bg-muted text-foreground"
-                }`}
-              >
-                {o.name}
-              </button>
-            ))}
-            <Link
-              to="/setup"
-              className="w-full text-center px-4 py-3 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:bg-muted transition-all block"
-            >
-              + Add New Business
-            </Link>
-          </CardContent>
-        </Card>
-      ) : null}
-
       {/* Kiosk URL */}
       <Card>
         <CardHeader>
@@ -634,6 +603,15 @@ function SettingsTab() {
         <Button onClick={handleSave} disabled={saving} className="w-full">
           {saving ? "Saving..." : "Save Changes"}
         </Button>
+        {isOwner ? (
+          <Link
+            to="/setup"
+            className="w-full text-center px-4 py-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:bg-muted transition-all block"
+          >
+            <PlusCircle className="h-4 w-4 inline mr-2" />
+            Add New Business
+          </Link>
+        ) : null}
         <Button
           variant="outline"
           onClick={handleSignOut}
@@ -654,9 +632,18 @@ function SettingsTab() {
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") === "settings" ? "settings" : "interviews";
+  const { data: org } = useOrg();
+  const { data: orgs } = useOrgs();
+  const queryClient = useQueryClient();
 
   function handleTabChange(value: string) {
     setSearchParams(value === "settings" ? { tab: "settings" } : {}, { replace: true });
+  }
+
+  function handleOrgSwitch(orgId: string) {
+    setSelectedOrgId(orgId);
+    queryClient.setQueryData(["selectedOrgId"], orgId);
+    queryClient.invalidateQueries({ queryKey: ["interviews"] });
   }
 
   return (
@@ -667,6 +654,26 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Manage your interviews and kiosk settings</p>
         </div>
+
+        {/* Business switcher — always visible above tabs when multiple orgs */}
+        {orgs && orgs.length > 1 ? (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {orgs.map((o) => (
+              <button
+                key={o.id}
+                onClick={() => handleOrgSwitch(o.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                  org?.id === o.id
+                    ? "bg-primary/10 border-primary/50 text-primary"
+                    : "bg-muted/40 border-border hover:bg-muted text-foreground"
+                }`}
+              >
+                <Building2 className="h-4 w-4" />
+                {o.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-6">
