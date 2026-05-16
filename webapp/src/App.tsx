@@ -16,6 +16,7 @@ import Login from "./pages/Login";
 import OrgSetup from "./pages/OrgSetup";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
 import KioskPage from "./pages/KioskPage";
+import GraduationVideo from "./pages/GraduationVideo";
 import { AuthGuard } from "./components/AuthGuard";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/admin/questions" element={<AuthGuard><QuestionsPage /></AuthGuard>} />
             <Route path="/settings" element={<Navigate to="/dashboard?tab=settings" replace />} />
             <Route path="/kiosk-legacy" element={<Index />} />
+            <Route path="/graduation" element={<GraduationVideo />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
