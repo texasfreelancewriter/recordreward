@@ -168,71 +168,98 @@ export default function GraduationVideo() {
 
         {phase === "upload" && (
           <div className="space-y-5">
-            {/* Main drop zone */}
-            <div
-              className={cn(
-                "relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 cursor-pointer",
-                isDragging
-                  ? "border-[#D4AF37] bg-[#D4AF37]/5"
-                  : mediaFiles.length > 0
-                  ? "border-[#D4AF37]/40 bg-[#D4AF37]/3"
-                  : "border-white/10 hover:border-[#D4AF37]/40 hover:bg-white/2"
-              )}
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              onClick={() => mediaInputRef.current?.click()}
-            >
-              <input
-                ref={mediaInputRef}
-                type="file"
-                multiple
-                accept="image/*,video/*"
-                className="hidden"
-                onChange={(e) => { if (e.target.files) addFiles(e.target.files); }}
-              />
-              {mediaFiles.length === 0 ? (
+            {/* Batch upload tip banner — always visible */}
+            <div className="bg-[#D4AF37]/8 border border-[#D4AF37]/20 rounded-xl px-4 py-3 flex gap-3 items-start">
+              <span className="text-lg leading-none mt-0.5">💡</span>
+              <div>
+                <p className="text-[#D4AF37] text-sm font-medium">Your phone may limit picks to ~5 at a time</p>
+                <p className="text-white/50 text-xs mt-0.5 leading-relaxed">
+                  That's fine — just keep tapping <strong className="text-white/70">"Add More Files"</strong> after each batch.
+                  All your picks stack together and nothing gets lost.
+                </p>
+              </div>
+            </div>
+
+            {/* Drop zone — first pick */}
+            {mediaFiles.length === 0 ? (
+              <div
+                className={cn(
+                  "relative border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-200 cursor-pointer",
+                  isDragging
+                    ? "border-[#D4AF37] bg-[#D4AF37]/5"
+                    : "border-white/10 hover:border-[#D4AF37]/40 hover:bg-white/2"
+                )}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => mediaInputRef.current?.click()}
+              >
+                <input
+                  ref={mediaInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
+                />
                 <div className="space-y-3">
                   <div className="flex justify-center gap-3 text-white/20">
                     <ImageIcon className="w-10 h-10" />
                     <Film className="w-10 h-10" />
                   </div>
                   <p className="text-white/60 text-lg font-medium">Tap to select photos &amp; videos</p>
-                  <p className="text-white/30 text-sm">Or drag them here from your file manager</p>
-                  <p className="text-white/20 text-xs mt-2">JPG, PNG, MP4, MOV, HEIC — select all from today</p>
+                  <p className="text-white/30 text-sm">Select as many as your phone allows — you can add more after</p>
+                  <p className="text-white/20 text-xs mt-1">JPG, PNG, MP4, MOV — pick everything from today</p>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex justify-center gap-6">
-                    {photoCount > 0 && (
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-[#D4AF37]">{photoCount}</div>
-                        <div className="text-xs text-white/50 mt-0.5">photos</div>
-                      </div>
-                    )}
-                    {videoCount > 0 && (
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-[#D4AF37]">{videoCount}</div>
-                        <div className="text-xs text-white/50 mt-0.5">videos</div>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-white/50 text-sm">
-                    Estimated video length: ~{formatTime(estimatedSecs)}
-                  </p>
-                  <p className="text-[#D4AF37]/70 text-xs">Tap to add more files</p>
+              </div>
+            ) : (
+              /* Files loaded — show count + big "Add More" button */
+              <div className="border border-[#D4AF37]/25 bg-[#D4AF37]/4 rounded-2xl p-5 space-y-4">
+                <input
+                  ref={mediaInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
+                />
+                {/* Totals */}
+                <div className="flex justify-center gap-8">
+                  {photoCount > 0 && (
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-[#D4AF37]">{photoCount}</div>
+                      <div className="text-xs text-white/50 mt-1">photos added</div>
+                    </div>
+                  )}
+                  {videoCount > 0 && (
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-[#D4AF37]">{videoCount}</div>
+                      <div className="text-xs text-white/50 mt-1">videos added</div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+                <p className="text-center text-white/40 text-sm">
+                  ~{formatTime(estimatedSecs)} estimated video
+                </p>
 
-            {mediaFiles.length > 0 && (
-              <button
-                onClick={(e) => { e.stopPropagation(); removeAll(); }}
-                className="w-full text-center text-white/30 text-xs hover:text-white/60 transition-colors"
-              >
-                <X className="w-3 h-3 inline mr-1" />
-                Remove all files and start over
-              </button>
+                {/* Big "Add More" button */}
+                <Button
+                  onClick={() => mediaInputRef.current?.click()}
+                  variant="outline"
+                  className="w-full h-12 border-[#D4AF37]/40 text-[#D4AF37] hover:bg-[#D4AF37]/10 hover:border-[#D4AF37]/70 bg-transparent rounded-xl font-semibold"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Add More Files (keep selecting batches)
+                </Button>
+
+                <button
+                  onClick={removeAll}
+                  className="w-full text-center text-white/25 text-xs hover:text-white/50 transition-colors"
+                >
+                  <X className="w-3 h-3 inline mr-1" />
+                  Remove all and start over
+                </button>
+              </div>
             )}
 
             {/* File list preview (last 6) */}
