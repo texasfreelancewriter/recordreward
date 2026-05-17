@@ -637,7 +637,11 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
 
   function handleTabChange(value: string) {
-    setSearchParams(value === "settings" ? { tab: "settings" } : {}, { replace: true });
+    if (value === "settings" || value === "commercials") {
+      setSearchParams({ tab: value }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
   }
 
   function handleOrgSwitch(orgId: string) {
