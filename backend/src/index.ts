@@ -10,6 +10,7 @@ import { kioskConfigRouter } from "./routes/kiosk-config";
 import { organizationsRouter } from "./routes/organizations";
 import { publicKioskRouter } from "./routes/public-kiosk";
 import { invitesRouter } from "./routes/invites";
+import { commercialsRouter } from "./routes/commercials";
 
 const app = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
@@ -223,5 +224,6 @@ app.route("/api/kiosk-config", kioskConfigRouter);
 app.route("/api/organizations", organizationsRouter);
 app.route("/api/public/kiosk", publicKioskRouter);
 app.route("/api/invites", invitesRouter);
+app.route("/api/commercials", commercialsRouter);
 
 export default app;

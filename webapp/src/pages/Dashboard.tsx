@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Video, CheckCircle, Clock, User, Calendar, Trash2, Copy, Check, LogOut, Building2, PlusCircle, Upload, Loader2 } from "lucide-react";
+import { Video, CheckCircle, Clock, User, Calendar, Trash2, Copy, Check, LogOut, Building2, PlusCircle, Upload, Loader2, Clapperboard } from "lucide-react";
 import { api } from "@/lib/api";
 import { uploadFile } from "@/lib/upload";
 import { Interview } from "@/types/interviews";
@@ -631,7 +631,7 @@ function SettingsTab() {
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") === "settings" ? "settings" : "interviews";
+  const activeTab = searchParams.get("tab") === "settings" ? "settings" : searchParams.get("tab") === "commercials" ? "commercials" : "interviews";
   const { data: org } = useOrg();
   const { data: orgs } = useOrgs();
   const queryClient = useQueryClient();
@@ -678,11 +678,31 @@ export default function Dashboard() {
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-6">
             <TabsTrigger value="interviews">Interviews</TabsTrigger>
+            <TabsTrigger value="commercials" className="gap-1.5">
+              <Clapperboard className="h-3.5 w-3.5" />
+              Commercials
+            </TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="interviews">
             <InterviewsTab />
+          </TabsContent>
+
+          <TabsContent value="commercials">
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Clapperboard className="h-10 w-10 text-primary mb-3" />
+              <h3 className="font-semibold text-lg mb-1">AI Commercial Builder</h3>
+              <p className="text-sm text-muted-foreground mb-5 max-w-xs">
+                Upload your shots, generate AI-ready prompts for 30s and 60s ads.
+              </p>
+              <Link to="/commercial">
+                <Button className="gap-2">
+                  <Clapperboard className="h-4 w-4" />
+                  Open Commercial Builder
+                </Button>
+              </Link>
+            </div>
           </TabsContent>
 
           <TabsContent value="settings">

@@ -16,6 +16,9 @@ import Login from "./pages/Login";
 import OrgSetup from "./pages/OrgSetup";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
 import KioskPage from "./pages/KioskPage";
+import CommercialProjectsPage from "./pages/commercial/CommercialProjectsPage";
+import NewCommercialPage from "./pages/commercial/NewCommercialPage";
+import CommercialProjectPage from "./pages/commercial/CommercialProjectPage";
 import { AuthGuard } from "./components/AuthGuard";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -59,6 +62,9 @@ const App = () => (
             <Route path="/admin/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/admin/questions" element={<AuthGuard><QuestionsPage /></AuthGuard>} />
             <Route path="/settings" element={<Navigate to="/dashboard?tab=settings" replace />} />
+            <Route path="/commercial" element={<AuthGuard><CommercialProjectsPage /></AuthGuard>} />
+            <Route path="/commercial/new" element={<AuthGuard><NewCommercialPage /></AuthGuard>} />
+            <Route path="/commercial/:id" element={<AuthGuard><CommercialProjectPage /></AuthGuard>} />
             <Route path="/kiosk-legacy" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
