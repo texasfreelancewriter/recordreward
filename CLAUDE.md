@@ -1,3 +1,67 @@
+# RecordReward — Claude Knowledge Base
+
+## What This Product Is
+RecordReward (recordreward.com) is a customer interview and testimonial capture system for restaurants and small businesses. Customers are asked a short series of questions and record video responses on their phone. Responses serve two purposes: data collection for the business and sound bites usable in ads and promotional content.
+
+## How It Works
+1. Customer walks in and scans a QR code or taps a link
+2. They select a bucket button — **First-Time Customer** or **Regular Customer**
+3. They are shown 2–3 questions specific to their bucket
+4. They record a short video response to each question on their phone
+5. Responses are stored and accessible to the business owner
+
+## Question System (Bank Mode — Not AI Generated)
+Questions are pre-written and managed by the business owner or admin. There is no AI question generation — questions are curated by humans for consistency and brand fit.
+
+**Each bucket has its own question bank:**
+
+*First-Time Customer (sample questions):*
+1. What brought you in tonight?
+2. What did you order, and what did you think?
+3. Is there anything you'd love to see on the menu?
+
+*Regular Customer (sample questions):*
+1. What's your go-to order and why?
+2. What would you tell a friend who had never been here?
+3. What keeps you coming back?
+
+Business owners can customize all questions in settings. The bucket selection at the start (First-Time / Regular) is a permanent feature — it segments responses for data purposes.
+
+## Dual Purpose of Every Response
+Every question should be designed to produce a response that is:
+1. **Useful as data** — preference, behavior, frequency, feedback
+2. **Usable as content** — a sound bite that works in a social media ad or promotional video with no editing
+
+When suggesting or reviewing questions, always evaluate them against both criteria.
+
+## Question Writing Rules
+- Write for someone speaking on camera, not filling out a form
+- Avoid yes/no questions — every answer should tell a small story
+- Keep questions short enough to read on a phone screen in one glance
+- One idea per question — never combine two questions into one
+- The best answers should be publishable as-is, 15–30 seconds long
+
+## Current State vs. Planned State
+- **Current:** Single question per visit, first-time vs. regular selection
+- **Planned:** Multiple questions per bucket (2–3), customizable by the business owner in settings
+
+When working on this app, build toward the planned state — the single-question limitation is what's being upgraded.
+
+## Target Customers
+- Restaurants (primary)
+- Small businesses (secondary — a separate variant exists in `small business app/`)
+- Any local business that wants authentic customer testimonials for advertising
+
+## Tech Stack
+- Backend: Cloudflare Workers + D1 (SQLite) + R2 (video storage)
+- Frontend: React + Vite + Tailwind + shadcn/ui
+- Transcription: Cloudflare Workers AI (Whisper) — input must be base64 string, not number array
+
+## Known Issue (Critical)
+Whisper transcription requires base64 string input. Passing a number array silently fails — transcription returns nothing. Always verify audio is converted to base64 before submitting to Whisper.
+
+---
+
 # Vibecode Workspace
 
 This workspace contains a mobile app and backend server.

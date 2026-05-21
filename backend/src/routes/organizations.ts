@@ -57,6 +57,54 @@ organizationsRouter.post(
   }
 );
 
+// DELETE /api/organizations/:id — owner-only, cascades all data
+organizationsRouter.delete("/:id", async (c) => {
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
+  }
+
+  const orgId = c.req.param("id");
+
+  // Confirm caller is owner of this org
+  const membership = await c.env.DB.prepare(
+    "SELECT role FROM OrgMember WHERE organizationId = ? AND userId = ?"
+  ).bind(orgId, user.id).first<{ role: string }>();
+
+  if (!membership || membership.role !== "owner") {
+    return c.json({ error: { message: "Forbidden", code: "FORBIDDEN" } }, 403);
+  }
+
+  // Cascade: clips → questions → interviews, then config, members, org
+  const interviews = await c.env.DB.prepare(
+    "SELECT id FROM Interview WHERE organizationId = ?"
+  ).bind(orgId).all<{ id: string }>();
+
+  const interviewIds = (interviews.results ?? []).map((r) => r.id);
+
+  const deleteOps = [];
+
+  // Delete clips and questions for each interview
+  for (const interviewId of interviewIds) {
+    deleteOps.push(
+      c.env.DB.prepare("DELETE FROM InterviewClip WHERE interviewId = ?").bind(interviewId),
+      c.env.DB.prepare("DELETE FROM InterviewQuestion WHERE interviewId = ?").bind(interviewId)
+    );
+  }
+
+  // Delete all interviews, kiosk config, members, and the org itself
+  deleteOps.push(
+    c.env.DB.prepare("DELETE FROM Interview WHERE organizationId = ?").bind(orgId),
+    c.env.DB.prepare("DELETE FROM OrgKioskConfig WHERE organizationId = ?").bind(orgId),
+    c.env.DB.prepare("DELETE FROM OrgMember WHERE organizationId = ?").bind(orgId),
+    c.env.DB.prepare("DELETE FROM Organization WHERE id = ?").bind(orgId)
+  );
+
+  await c.env.DB.batch(deleteOps);
+
+  return c.json({ data: { success: true } });
+});
+
 organizationsRouter.get("/mine", async (c) => {
   const user = c.get("user");
 

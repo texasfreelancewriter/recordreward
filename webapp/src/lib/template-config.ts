@@ -1,7 +1,8 @@
 export type ButtonConfig = {
   id: "first_time" | "ace";
   label: string;
-  questionText: string;
+  questionText?: string; // legacy — use questions[] instead
+  questions: string[];
   variant: "primary" | "secondary";
   enabled?: boolean;
 };
@@ -38,14 +39,14 @@ export const DEFAULT_CONFIG: TemplateConfig = {
     {
       id: "first_time",
       label: "First Time",
-      questionText: "Tell us about your first PopStroke experience.",
+      questions: ["Tell us about your first PopStroke experience."],
       variant: "primary",
       enabled: true,
     },
     {
       id: "ace",
       label: "Ace",
-      questionText: "Congratulations! Tell us about your big shot.",
+      questions: ["Congratulations! Tell us about your big shot."],
       variant: "secondary",
       enabled: true,
     },
@@ -66,7 +67,12 @@ export function getConfig(): TemplateConfig {
         heroText: parsed.heroText ?? DEFAULT_CONFIG.heroText,
         emailEnabled: parsed.emailEnabled ?? true,
         starRatingEnabled: parsed.starRatingEnabled ?? true,
-        buttons: (parsed.buttons && parsed.buttons.length > 0) ? parsed.buttons : DEFAULT_CONFIG.buttons,
+        buttons: (parsed.buttons && parsed.buttons.length > 0)
+        ? parsed.buttons.map((b) => ({
+            ...b,
+            questions: b.questions ?? (b.questionText ? [b.questionText] : []),
+          }))
+        : DEFAULT_CONFIG.buttons,
       };
     }
   } catch (_e) {
@@ -90,7 +96,13 @@ export async function fetchServerConfig(orgId?: string): Promise<TemplateConfig 
     const url = orgId ? `${API_BASE}/api/kiosk-config?orgId=${orgId}` : `${API_BASE}/api/kiosk-config`;
     const res = await fetch(url, { credentials: "include" });
     const json = await res.json();
-    if (json.data) return { ...DEFAULT_CONFIG, ...json.data, rewardEnabled: json.data.rewardEnabled ?? true, heroText: json.data.heroText ?? DEFAULT_CONFIG.heroText, emailEnabled: json.data.emailEnabled ?? true, starRatingEnabled: json.data.starRatingEnabled ?? true, buttons: json.data.buttons ?? DEFAULT_CONFIG.buttons };
+    if (json.data) {
+      const buttons = (json.data.buttons ?? DEFAULT_CONFIG.buttons).map((b: ButtonConfig) => ({
+        ...b,
+        questions: b.questions ?? (b.questionText ? [b.questionText] : []),
+      }));
+      return { ...DEFAULT_CONFIG, ...json.data, rewardEnabled: json.data.rewardEnabled ?? true, heroText: json.data.heroText ?? DEFAULT_CONFIG.heroText, emailEnabled: json.data.emailEnabled ?? true, starRatingEnabled: json.data.starRatingEnabled ?? true, buttons };
+    }
     return null;
   } catch { return null; }
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Video, CheckCircle, Clock, User, Calendar, Trash2, Copy, Check, LogOut, Building2, PlusCircle, Upload, Loader2, Clapperboard } from "lucide-react";
+import { Video, CheckCircle, Clock, User, Calendar, Trash2, Copy, Check, LogOut, Building2, PlusCircle, Upload, Loader2, Clapperboard, Plus, X, ShieldCheck } from "lucide-react";
 import { api } from "@/lib/api";
 import { uploadFile } from "@/lib/upload";
 import { Interview } from "@/types/interviews";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DeleteInterviewDialog } from "@/components/interviews/DeleteInterviewDialog";
+import { DeleteBusinessDialog } from "@/components/admin/DeleteBusinessDialog";
 import { signOut } from "@/lib/auth-client";
 import { useOrg, useOrgs, setSelectedOrgId } from "@/hooks/useOrg";
 import {
@@ -503,15 +504,16 @@ function SettingsTab() {
       {/* Buttons */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Kiosk Buttons</CardTitle>
-          <CardDescription>Control which buttons appear and what they say.</CardDescription>
+          <CardTitle className="text-base">Kiosk Buttons & Questions</CardTitle>
+          <CardDescription>Control which buttons appear and what questions customers are asked.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-6">
+        <CardContent className="flex flex-col gap-8">
           {(["first_time", "ace"] as const).map((btnId) => {
             const btn = draft.buttons.find((b) => b.id === btnId) ?? draft.buttons[0];
             const btnLabel = btnId === "first_time" ? "First Time Button" : "Ace Button";
+            const questions = btn.questions ?? [];
             return (
-              <div key={btnId} className="flex flex-col gap-3">
+              <div key={btnId} className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{btnLabel}</span>
                   <button
@@ -552,22 +554,62 @@ function SettingsTab() {
                     placeholder="e.g. First Time"
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label>Prompt</Label>
-                  <textarea
-                    value={btn.questionText}
-                    onChange={(e) =>
+                <div className="flex flex-col gap-2">
+                  <Label>Questions</Label>
+                  {questions.map((q, qIdx) => (
+                    <div key={qIdx} className="flex gap-2 items-start">
+                      <textarea
+                        value={q}
+                        onChange={(e) =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            buttons: prev.buttons.map((b) => {
+                              if (b.id !== btnId) return b;
+                              const updated = [...(b.questions ?? [])];
+                              updated[qIdx] = e.target.value;
+                              return { ...b, questions: updated };
+                            }),
+                          }))
+                        }
+                        rows={2}
+                        placeholder="Question shown to the customer while recording"
+                        className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            buttons: prev.buttons.map((b) => {
+                              if (b.id !== btnId) return b;
+                              const updated = (b.questions ?? []).filter((_, i) => i !== qIdx);
+                              return { ...b, questions: updated };
+                            }),
+                          }))
+                        }
+                        className="mt-2 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Remove question"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() =>
                       setDraft((prev) => ({
                         ...prev,
-                        buttons: prev.buttons.map((b) =>
-                          b.id === btnId ? { ...b, questionText: e.target.value } : b
-                        ),
+                        buttons: prev.buttons.map((b) => {
+                          if (b.id !== btnId) return b;
+                          return { ...b, questions: [...(b.questions ?? []), ""] };
+                        }),
                       }))
                     }
-                    rows={3}
-                    placeholder="Question shown to the customer while recording"
-                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y"
-                  />
+                    className="flex items-center gap-1.5 text-sm text-primary hover:underline mt-1 w-fit"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Question
+                  </button>
                 </div>
               </div>
             );
@@ -626,18 +668,116 @@ function SettingsTab() {
 }
 
 // ---------------------------------------------------------------------------
+// AdminTab
+// ---------------------------------------------------------------------------
+
+function AdminTab() {
+  const { data: org } = useOrg();
+  const { data: orgs, refetch } = useOrgs();
+  const queryClient = useQueryClient();
+
+  const isOwner = org?.role === "owner";
+
+  function handleBusinessDeleted(deletedOrgId: string) {
+    // If the deleted org was selected, switch to another one
+    if (org?.id === deletedOrgId) {
+      const remaining = (orgs ?? []).filter((o) => o.id !== deletedOrgId);
+      if (remaining.length > 0) {
+        setSelectedOrgId(remaining[0].id);
+        queryClient.setQueryData(["selectedOrgId"], remaining[0].id);
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ["interviews"] });
+    refetch();
+  }
+
+  if (!isOwner) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+          <ShieldCheck className="h-10 w-10 text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Admin access required</p>
+          <p className="text-sm text-muted-foreground mt-1">Only account owners can manage businesses.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Businesses</h2>
+          <p className="text-sm text-muted-foreground">Add or remove client businesses from this account.</p>
+        </div>
+        <Link to="/setup">
+          <Button size="sm" className="gap-2">
+            <PlusCircle className="h-4 w-4" />
+            Add Business
+          </Button>
+        </Link>
+      </div>
+
+      {/* Business list */}
+      {!orgs || orgs.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+            <Building2 className="h-10 w-10 text-muted-foreground mb-3" />
+            <p className="text-muted-foreground text-sm">No businesses yet.</p>
+            <Link to="/setup" className="mt-3">
+              <Button size="sm" variant="outline" className="gap-2">
+                <PlusCircle className="h-4 w-4" />
+                Add Your First Business
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {orgs.map((o) => (
+            <Card key={o.id} className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 shrink-0">
+                  <Building2 className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{o.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">/{o.slug}</p>
+                </div>
+              </div>
+              <DeleteBusinessDialog
+                orgId={o.id}
+                orgName={o.name}
+                onSuccess={() => handleBusinessDeleted(o.id)}
+              />
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Danger zone note */}
+      <p className="text-xs text-muted-foreground text-center px-4">
+        Deleting a business permanently removes it and all its interviews. This cannot be undone.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Dashboard (main export)
 // ---------------------------------------------------------------------------
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") === "settings" ? "settings" : searchParams.get("tab") === "commercials" ? "commercials" : "interviews";
+  const tabParam = searchParams.get("tab");
+  const activeTab = tabParam === "settings" ? "settings" : tabParam === "commercials" ? "commercials" : tabParam === "admin" ? "admin" : "interviews";
   const { data: org } = useOrg();
   const { data: orgs } = useOrgs();
   const queryClient = useQueryClient();
 
   function handleTabChange(value: string) {
-    if (value === "settings" || value === "commercials") {
+    if (value === "settings" || value === "commercials" || value === "admin") {
       setSearchParams({ tab: value }, { replace: true });
     } else {
       setSearchParams({}, { replace: true });
@@ -687,6 +827,10 @@ export default function Dashboard() {
               Commercials
             </TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="admin" className="gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Admin
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="interviews">
@@ -711,6 +855,10 @@ export default function Dashboard() {
 
           <TabsContent value="settings">
             <SettingsTab />
+          </TabsContent>
+
+          <TabsContent value="admin">
+            <AdminTab />
           </TabsContent>
         </Tabs>
       </div>

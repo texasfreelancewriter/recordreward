@@ -99,7 +99,8 @@ const KioskPage = () => {
     setError("");
     setPageState("starting");
 
-    const questionText = config.buttons.find((b) => b.id === buttonId)!.questionText;
+    const btn = config.buttons.find((b) => b.id === buttonId)!;
+    const questionText = btn.questions?.[0] ?? btn.questionText ?? "";
 
     try {
       const trimmedEmail = guestEmail.trim();
