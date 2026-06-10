@@ -51,7 +51,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<RecordRewardLanding />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/setup" element={<OrgSetup />} />
+            <Route path="/setup" element={<AuthGuard><OrgSetup /></AuthGuard>} />
             <Route path="/invite/:token" element={<AcceptInvitePage />} />
             <Route path="/kiosk/:slug" element={<KioskPage />} />
             <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />

@@ -2,7 +2,18 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import type { Env, AppVariables } from "../env";
-import { sendRewardEmail } from "../utils/email";
+import { sendCouponEmail } from "../utils/email";
+
+// Generates a readable 8-char coupon code, excluding ambiguous chars (0, O, I, L)
+function generateCouponCode(): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let code = "";
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  for (const b of bytes) {
+    code += chars[b % chars.length];
+  }
+  return code;
+}
 
 const publicKioskRouter = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
@@ -120,12 +131,14 @@ publicKioskRouter.post(
       c.env.DB.prepare("SELECT id FROM InterviewQuestion WHERE interviewId = ?").bind(interviewId).all(),
       c.env.DB.prepare("SELECT id FROM InterviewClip WHERE interviewId = ?").bind(interviewId).all(),
       c.env.DB.prepare(
-        "SELECT i.starRating, u.name AS userName, u.email AS userEmail FROM Interview i JOIN user u ON i.userId = u.id WHERE i.id = ?"
-      ).bind(interviewId).first<{ starRating: number | null; userName: string; userEmail: string }>(),
+        "SELECT i.starRating, i.userId, u.name AS userName, u.email AS userEmail FROM Interview i JOIN user u ON i.userId = u.id WHERE i.id = ?"
+      ).bind(interviewId).first<{ starRating: number | null; userId: string; userName: string; userEmail: string }>(),
     ]);
 
     const questionCount = (questionsResult.results ?? []).length;
     const clipCount = (clipsResult.results ?? []).length;
+
+    let couponCode: string | null = null;
 
     if (clipCount === questionCount && questionCount > 0 && interviewRow) {
       const rating = interviewRow.starRating;
@@ -136,38 +149,63 @@ publicKioskRouter.post(
         "UPDATE Interview SET status = ?, updatedAt = ? WHERE id = ?"
       ).bind(completedStatus, now, interviewId).run();
 
-      c.executionCtx.waitUntil(
-        (async () => {
+      // Only issue coupon for non-dismissed interviews
+      if (completedStatus !== "dismissed") {
+        const configRow = await c.env.DB.prepare(
+          "SELECT data FROM OrgKioskConfig WHERE organizationId = ?"
+        ).bind(org.id).first<{ data: string }>();
+
+        let rewardText = "";
+        if (configRow?.data) {
           try {
-            const configRow = await c.env.DB.prepare(
-              "SELECT data FROM OrgKioskConfig WHERE organizationId = ?"
-            ).bind(org.id).first<{ data: string }>();
+            rewardText = (JSON.parse(configRow.data) as { rewardText?: string }).rewardText ?? "";
+          } catch { /* ignore */ }
+        }
 
-            let rewardText = "";
-            if (configRow?.data) {
-              try {
-                rewardText = (JSON.parse(configRow.data) as { rewardText?: string }).rewardText ?? "";
-              } catch { /* ignore */ }
-            }
-            if (!rewardText) return;
+        if (rewardText) {
+          // Enforce 30-day rate limit: one coupon per user per org per 30 days
+          const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const existingCoupon = await c.env.DB.prepare(
+            "SELECT id FROM Coupon WHERE userId = ? AND organizationId = ? AND expiresAt > ? LIMIT 1"
+          ).bind(interviewRow.userId, org.id, cutoff).first<{ id: string }>();
 
-            await sendRewardEmail(c.env, {
-              name: interviewRow.userName,
-              email: interviewRow.userEmail,
+          if (!existingCoupon) {
+            const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+            couponCode = generateCouponCode();
+
+            await c.env.DB.prepare(
+              `INSERT INTO Coupon (id, code, organizationId, interviewId, userId, rewardText, expiresAt, createdAt)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            ).bind(
+              crypto.randomUUID(),
+              couponCode,
+              org.id,
+              interviewId,
+              interviewRow.userId,
               rewardText,
-            });
-          } catch (err) {
-            console.error("[email] Error sending reward email:", err);
+              expiresAt,
+              now
+            ).run();
+
+            c.executionCtx.waitUntil(
+              sendCouponEmail(c.env, {
+                name: interviewRow.userName,
+                email: interviewRow.userEmail,
+                rewardText,
+                couponCode,
+                expiresAt,
+              }).catch((err) => console.error("[email] Error sending coupon:", err))
+            );
           }
-        })()
-      );
+        }
+      }
     }
 
     const clip = await c.env.DB.prepare(
       "SELECT * FROM InterviewClip WHERE id = ?"
     ).bind(clipId).first();
 
-    return c.json({ data: { ...clip, isPublished: false } });
+    return c.json({ data: { ...clip, isPublished: false, couponCode } });
   }
 );
 

@@ -11,6 +11,7 @@ import { organizationsRouter } from "./routes/organizations";
 import { publicKioskRouter } from "./routes/public-kiosk";
 import { invitesRouter } from "./routes/invites";
 import { commercialsRouter } from "./routes/commercials";
+import { couponsRouter } from "./routes/coupons";
 
 const app = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
@@ -225,5 +226,6 @@ app.route("/api/organizations", organizationsRouter);
 app.route("/api/public/kiosk", publicKioskRouter);
 app.route("/api/invites", invitesRouter);
 app.route("/api/commercials", commercialsRouter);
+app.route("/api/coupons", couponsRouter);
 
 export default app;

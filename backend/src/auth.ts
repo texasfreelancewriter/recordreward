@@ -45,6 +45,7 @@ export function createAuth(env: Env) {
       defaultCookieAttributes: {
         sameSite: "none",
         secure: true,
+        ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}),
       },
     },
   });

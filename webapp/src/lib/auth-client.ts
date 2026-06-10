@@ -2,7 +2,7 @@ import { createAuthClient } from "better-auth/react";
 import { emailOTPClient } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_BACKEND_URL || "https://record-reward-backend.texasfreelancewriter.workers.dev",
+  baseURL: import.meta.env.VITE_BACKEND_URL || "https://api.recordreward.com",
   plugins: [emailOTPClient()],
   fetchOptions: {
     credentials: "include",

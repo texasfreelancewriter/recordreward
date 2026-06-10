@@ -15,6 +15,7 @@ bucket_name = "recordreward-videos"
 
 [vars]
 RESEND_FROM_EMAIL = "hello@recordreward.com"
+COOKIE_DOMAIN = ".recordreward.com"
 
 # Secrets (not stored here — set via: wrangler secret put SECRET_NAME)
 # BETTER_AUTH_SECRET

@@ -61,6 +61,7 @@ const KioskPage = () => {
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [starRating, setStarRating] = useState<number>(0);
+  const [couponCode, setCouponCode] = useState<string | null>(null);
 
   const stopCamera = useCallback(() => {
     cancelAnimationFrame(animFrameRef.current);
@@ -247,12 +248,16 @@ const KioskPage = () => {
       const ext = mimeTypeRef.current.includes("mp4") ? "mp4" : "webm";
       const file = new File([blob], `clip-${questionId}.${ext}`, { type: mimeTypeRef.current });
       const uploadResult = await uploadVideo(file);
-      await api.post(`/api/public/kiosk/${slug}/interviews/${interviewId}/clips`, {
-        questionId,
-        videoUrl: uploadResult.url,
-        thumbnailUrl: uploadResult.thumbnailUrl ?? undefined,
-        duration: uploadResult.duration ?? undefined,
-      });
+      const clipResult = await api.post<{ couponCode?: string | null }>(
+        `/api/public/kiosk/${slug}/interviews/${interviewId}/clips`,
+        {
+          questionId,
+          videoUrl: uploadResult.url,
+          thumbnailUrl: uploadResult.thumbnailUrl ?? undefined,
+          duration: uploadResult.duration ?? undefined,
+        }
+      );
+      setCouponCode(clipResult?.couponCode ?? null);
     } catch {
       // Still show complete screen
     }
@@ -266,6 +271,7 @@ const KioskPage = () => {
       setGuestName("");
       setGuestEmail("");
       setStarRating(0);
+      setCouponCode(null);
     }, 15000);
   };
 
@@ -470,17 +476,32 @@ const KioskPage = () => {
               </div>
             </div>
             <h2 className="text-white text-xl font-bold mb-3">Thanks for your feedback!</h2>
-            <p className="text-white/70 text-sm leading-relaxed">
-              {(config.rewardEnabled ?? true) ? (
-                <>
-                  Check your email for your reward
-                  <br />
-                  <span className="text-white font-semibold">{config.rewardText || "reward"}</span>
-                </>
-              ) : (
-                "Thank you for your feedback!"
-              )}
-            </p>
+            {(config.rewardEnabled ?? true) && couponCode ? (
+              <div className="w-full">
+                <p className="text-white/70 text-sm mb-2">{config.rewardText || "Your reward"}</p>
+                <div
+                  className="rounded-xl px-4 py-3 mb-2"
+                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)" }}
+                >
+                  <p className="text-white/60 text-xs mb-1 text-center">Your reward code</p>
+                  <p
+                    className="text-white text-3xl font-bold tracking-widest text-center"
+                    style={{ fontFamily: "monospace" }}
+                  >
+                    {couponCode}
+                  </p>
+                </div>
+                <p className="text-white/50 text-xs text-center">Also sent to your email · Valid for 30 days</p>
+              </div>
+            ) : (config.rewardEnabled ?? true) ? (
+              <p className="text-white/70 text-sm leading-relaxed">
+                Check your email for your reward
+                <br />
+                <span className="text-white font-semibold">{config.rewardText || "reward"}</span>
+              </p>
+            ) : (
+              <p className="text-white/70 text-sm">Thank you for your feedback!</p>
+            )}
           </div>
         ) : null}
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Video, CheckCircle, Clock, User, Calendar, Trash2, Copy, Check, LogOut, Building2, PlusCircle, Upload, Loader2, Clapperboard, Plus, X, ShieldCheck } from "lucide-react";
+import { Video, CheckCircle, Clock, User, Calendar, Trash2, Copy, Check, LogOut, Building2, PlusCircle, Upload, Loader2, Clapperboard, Plus, X, ShieldCheck, Gift, AlertCircle, TicketCheck, TrendingUp } from "lucide-react";
 import { api } from "@/lib/api";
 import { uploadFile } from "@/lib/upload";
 import { Interview } from "@/types/interviews";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DeleteInterviewDialog } from "@/components/interviews/DeleteInterviewDialog";
 import { DeleteBusinessDialog } from "@/components/admin/DeleteBusinessDialog";
-import { signOut } from "@/lib/auth-client";
+import { signOut, useSession } from "@/lib/auth-client";
 import { useOrg, useOrgs, setSelectedOrgId } from "@/hooks/useOrg";
 import {
   fetchServerConfig,
@@ -23,6 +23,39 @@ import {
   TemplateConfig,
   SocialMediaConfig,
 } from "@/lib/template-config";
+
+// ---------------------------------------------------------------------------
+// DashboardHeader
+// ---------------------------------------------------------------------------
+
+function DashboardHeader() {
+  const navigate = useNavigate();
+  const { data: session } = useSession();
+
+  async function handleSignOut() {
+    await signOut();
+    navigate("/login");
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      {session?.user?.email ? (
+        <span className="hidden sm:block text-sm text-muted-foreground truncate max-w-[200px]">
+          {session.user.email}
+        </span>
+      ) : null}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleSignOut}
+        className="gap-2 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+      >
+        <LogOut className="h-4 w-4" />
+        <span className="hidden sm:inline">Sign Out</span>
+      </Button>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // InterviewCard
@@ -765,19 +798,340 @@ function AdminTab() {
 }
 
 // ---------------------------------------------------------------------------
+// CouponsTab
+// ---------------------------------------------------------------------------
+
+type CouponSummary = {
+  id: string;
+  code: string;
+  rewardText: string;
+  expiresAt: string;
+  redeemedAt: string | null;
+  createdAt: string;
+  customerName: string;
+  status: "valid" | "redeemed" | "expired";
+};
+
+type CouponsData = {
+  coupons: CouponSummary[];
+  stats: { total: number; redeemed: number; expired: number; valid: number };
+};
+
+function CouponsTab() {
+  const { data: org } = useOrg();
+  const orgId = org?.id;
+  const [filter, setFilter] = useState<"all" | "valid" | "redeemed" | "expired">("all");
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["coupons", orgId],
+    queryFn: () => api.get<CouponsData>(`/api/coupons?orgId=${orgId}`),
+    enabled: !!orgId,
+  });
+
+  const filtered = (data?.coupons ?? []).filter(
+    (c) => filter === "all" || c.status === filter
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+        </div>
+        <Skeleton className="h-64 rounded-lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <p className="text-destructive mb-4">Failed to load coupons</p>
+      </div>
+    );
+  }
+
+  const stats = data?.stats ?? { total: 0, redeemed: 0, expired: 0, valid: 0 };
+  const redemptionRate = stats.total > 0 ? Math.round((stats.redeemed / stats.total) * 100) : 0;
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Issued</p>
+            <p className="text-2xl font-bold">{stats.total}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-green-200 dark:border-green-900">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Active</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.valid}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-blue-200 dark:border-blue-900">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Redeemed</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.redeemed}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4 flex items-start justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Redemption Rate</p>
+              <p className="text-2xl font-bold">{redemptionRate}%</p>
+            </div>
+            <TrendingUp className="h-4 w-4 text-muted-foreground mt-1" />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filter */}
+      <div className="flex gap-2 flex-wrap">
+        {(["all", "valid", "redeemed", "expired"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${
+              filter === f
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {f === "all" ? `All (${stats.total})` : f === "valid" ? `Active (${stats.valid})` : f === "redeemed" ? `Redeemed (${stats.redeemed})` : `Expired (${stats.expired})`}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      {filtered.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <TicketCheck className="h-10 w-10 text-muted-foreground mb-3" />
+            <p className="text-muted-foreground text-sm">
+              {stats.total === 0 ? "No coupons issued yet — they'll appear after customers complete an interview." : "No coupons match this filter."}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {filtered.map((coupon) => (
+            <Card key={coupon.id} className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="font-mono font-bold text-sm tracking-widest shrink-0">{coupon.code}</span>
+                  <div className="min-w-0 hidden sm:block">
+                    <p className="text-sm font-medium truncate">{coupon.customerName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{coupon.rewardText}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right hidden md:block">
+                    <p className="text-xs text-muted-foreground">
+                      {coupon.redeemedAt
+                        ? `Redeemed ${new Date(coupon.redeemedAt).toLocaleDateString()}`
+                        : `Expires ${new Date(coupon.expiresAt).toLocaleDateString()}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Issued {new Date(coupon.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {coupon.status === "valid" ? (
+                    <span className="text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full">Active</span>
+                  ) : coupon.status === "redeemed" ? (
+                    <span className="text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full">Redeemed</span>
+                  ) : (
+                    <span className="text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 px-2 py-0.5 rounded-full">Expired</span>
+                  )}
+                </div>
+              </div>
+              {/* Mobile second row */}
+              <div className="sm:hidden mt-2 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">{coupon.customerName}</p>
+                  <p className="text-xs text-muted-foreground">{coupon.rewardText}</p>
+                </div>
+                <p className="text-xs text-muted-foreground text-right">
+                  {coupon.redeemedAt
+                    ? `Redeemed ${new Date(coupon.redeemedAt).toLocaleDateString()}`
+                    : `Expires ${new Date(coupon.expiresAt).toLocaleDateString()}`}
+                </p>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RedeemTab
+// ---------------------------------------------------------------------------
+
+type CouponLookup = {
+  code: string;
+  rewardText: string;
+  expiresAt: string;
+  redeemedAt: string | null;
+  createdAt: string;
+  customerName: string;
+  status: "valid" | "redeemed" | "expired";
+};
+
+function RedeemTab() {
+  const [inputCode, setInputCode] = useState("");
+  const [coupon, setCoupon] = useState<CouponLookup | null>(null);
+  const [lookupError, setLookupError] = useState("");
+  const [looking, setLooking] = useState(false);
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemSuccess, setRedeemSuccess] = useState(false);
+
+  async function handleLookup(e: React.FormEvent) {
+    e.preventDefault();
+    const code = inputCode.trim().toUpperCase();
+    if (!code) return;
+    setLooking(true);
+    setLookupError("");
+    setCoupon(null);
+    setRedeemSuccess(false);
+    try {
+      const result = await api.get<CouponLookup>(`/api/coupons/${code}`);
+      setCoupon(result);
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
+      setLookupError(status === 404 ? "Coupon code not found." : "Error looking up coupon.");
+    } finally {
+      setLooking(false);
+    }
+  }
+
+  async function handleRedeem() {
+    if (!coupon) return;
+    setRedeeming(true);
+    try {
+      await api.post(`/api/coupons/${coupon.code}/redeem`, {});
+      setCoupon({ ...coupon, status: "redeemed", redeemedAt: new Date().toISOString() });
+      setRedeemSuccess(true);
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "Failed to redeem.";
+      setLookupError(msg);
+    } finally {
+      setRedeeming(false);
+    }
+  }
+
+  function handleReset() {
+    setInputCode("");
+    setCoupon(null);
+    setLookupError("");
+    setRedeemSuccess(false);
+  }
+
+  return (
+    <div className="max-w-md mx-auto py-6">
+      <div className="flex items-center gap-2 mb-6">
+        <Gift className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold">Redeem Coupon</h2>
+      </div>
+
+      {!coupon ? (
+        <form onSubmit={handleLookup} className="space-y-3">
+          <div>
+            <Label htmlFor="coupon-code">Customer Coupon Code</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                id="coupon-code"
+                value={inputCode}
+                onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                placeholder="e.g. A3KR5NWQ"
+                className="font-mono tracking-widest text-base"
+                maxLength={8}
+                autoComplete="off"
+              />
+              <Button type="submit" disabled={looking || !inputCode.trim()}>
+                {looking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Look Up"}
+              </Button>
+            </div>
+          </div>
+          {lookupError ? (
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {lookupError}
+            </div>
+          ) : null}
+        </form>
+      ) : (
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="pt-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-bold font-mono tracking-widest">{coupon.code}</span>
+                {coupon.status === "valid" ? (
+                  <span className="text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full">Valid</span>
+                ) : coupon.status === "redeemed" ? (
+                  <span className="text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 px-2 py-0.5 rounded-full">Redeemed</span>
+                ) : (
+                  <span className="text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full">Expired</span>
+                )}
+              </div>
+              <div className="text-sm space-y-1 text-muted-foreground">
+                <p><span className="text-foreground font-medium">Reward:</span> {coupon.rewardText}</p>
+                <p><span className="text-foreground font-medium">Customer:</span> {coupon.customerName}</p>
+                <p><span className="text-foreground font-medium">Expires:</span> {new Date(coupon.expiresAt).toLocaleDateString()}</p>
+                {coupon.redeemedAt ? (
+                  <p><span className="text-foreground font-medium">Redeemed:</span> {new Date(coupon.redeemedAt).toLocaleDateString()}</p>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+
+          {redeemSuccess ? (
+            <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+              <CheckCircle className="h-4 w-4" />
+              Coupon redeemed successfully!
+            </div>
+          ) : null}
+
+          {lookupError ? (
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {lookupError}
+            </div>
+          ) : null}
+
+          <div className="flex gap-2">
+            {coupon.status === "valid" && !redeemSuccess ? (
+              <Button onClick={handleRedeem} disabled={redeeming} className="flex-1">
+                {redeeming ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                Mark as Redeemed
+              </Button>
+            ) : null}
+            <Button variant="outline" onClick={handleReset} className={coupon.status === "valid" && !redeemSuccess ? "" : "flex-1"}>
+              Look Up Another
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Dashboard (main export)
 // ---------------------------------------------------------------------------
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const activeTab = tabParam === "settings" ? "settings" : tabParam === "commercials" ? "commercials" : tabParam === "admin" ? "admin" : "interviews";
+  const activeTab = tabParam === "settings" ? "settings" : tabParam === "commercials" ? "commercials" : tabParam === "admin" ? "admin" : tabParam === "redeem" ? "redeem" : tabParam === "coupons" ? "coupons" : "interviews";
   const { data: org } = useOrg();
   const { data: orgs } = useOrgs();
   const queryClient = useQueryClient();
 
   function handleTabChange(value: string) {
-    if (value === "settings" || value === "commercials" || value === "admin") {
+    if (value === "settings" || value === "commercials" || value === "admin" || value === "redeem" || value === "coupons") {
       setSearchParams({ tab: value }, { replace: true });
     } else {
       setSearchParams({}, { replace: true });
@@ -794,9 +1148,12 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto p-6">
         {/* Page header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Manage your interviews and kiosk settings</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Manage your interviews and kiosk settings</p>
+          </div>
+          <DashboardHeader />
         </div>
 
         {/* Business switcher — always visible above tabs when multiple orgs */}
@@ -826,6 +1183,14 @@ export default function Dashboard() {
               <Clapperboard className="h-3.5 w-3.5" />
               Commercials
             </TabsTrigger>
+            <TabsTrigger value="redeem" className="gap-1.5">
+              <Gift className="h-3.5 w-3.5" />
+              Redeem
+            </TabsTrigger>
+            <TabsTrigger value="coupons" className="gap-1.5">
+              <TicketCheck className="h-3.5 w-3.5" />
+              Coupons
+            </TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
             <TabsTrigger value="admin" className="gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -851,6 +1216,14 @@ export default function Dashboard() {
                 </Button>
               </Link>
             </div>
+          </TabsContent>
+
+          <TabsContent value="redeem">
+            <RedeemTab />
+          </TabsContent>
+
+          <TabsContent value="coupons">
+            <CouponsTab />
           </TabsContent>
 
           <TabsContent value="settings">

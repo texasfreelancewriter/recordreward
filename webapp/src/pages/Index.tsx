@@ -102,7 +102,7 @@ const Index = () => {
 
       setInterviewId(result.interviewId);
       setQuestionId(result.questionId);
-      setCurrentQuestion(questionText);
+      setCurrentQuestion(questionText ?? "");
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Camera not available. Please open in a browser (not an embedded view) and ensure the page is served over HTTPS.");

@@ -5,6 +5,7 @@ export interface Env {
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
   ANTHROPIC_API_KEY: string;
+  COOKIE_DOMAIN?: string;
 }
 
 // Better Auth returns Date objects for timestamps; routes only need id/name/email

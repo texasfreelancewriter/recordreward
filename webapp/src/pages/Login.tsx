@@ -39,11 +39,11 @@ export default function Login() {
     try {
       await authClient.signIn.emailOtp({ email, otp });
       if (redirect) {
-        navigate(redirect);
+        window.location.href = redirect;
         return;
       }
       const org = await api.get<{ id: string } | null>("/api/organizations/mine");
-      navigate(org ? "/dashboard" : "/setup");
+      window.location.href = org ? "/dashboard" : "/setup";
     } catch {
       setError("Invalid code. Please try again.");
     } finally {
