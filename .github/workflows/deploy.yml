@@ -12,7 +12,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: webapp/package-lock.json
-      - run: cd webapp && npm ci --legacy-peer-deps && npm run build
+      - run: cd webapp && npm ci --legacy-peer-deps && npx vite build
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
