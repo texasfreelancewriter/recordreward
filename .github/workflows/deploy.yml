@@ -17,7 +17,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 18c511f8336d78be6cf55574b7ebc2d7
-          command: pages deploy webapp/dist --project-name=
+          command: pages deploy webapp/dist --project-name=record-reward-app
   deploy-backend:
     runs-on: ubuntu-latest
     steps:
