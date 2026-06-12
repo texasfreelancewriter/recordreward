@@ -8,6 +8,8 @@ import { getConfig, DEFAULT_CONFIG, TemplateConfig } from "@/lib/template-config
 
 type PageState = "idle" | "starting" | "previewing" | "recording" | "saving" | "complete" | "not_found";
 
+const COUNTDOWN_SECONDS = 90;
+
 const BLUE = "#1a4f8a";
 const BLUE_LIGHT = "#2563b0";
 
@@ -65,6 +67,11 @@ const KioskPage = () => {
   const [allQuestions, setAllQuestions] = useState<string[]>([]);
   const [allQuestionIds, setAllQuestionIds] = useState<string[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [countdown, setCountdown] = useState<number>(COUNTDOWN_SECONDS);
+
+  const handleDoneRef = useRef<(() => Promise<void>) | null>(null);
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingUploadsRef = useRef<Promise<void>[]>([]);
 
   const stopCamera = useCallback(() => {
     cancelAnimationFrame(animFrameRef.current);
@@ -245,15 +252,9 @@ const KioskPage = () => {
     setPageState("recording");
   };
 
-  const handleDone = async () => {
-    if (pageState !== "recording") return;
-    setPageState("saving");
-
-    const blob = await new Promise<Blob>((resolve) => {
-      if (!mediaRecorderRef.current) {
-        resolve(new Blob());
-        return;
-      }
+  const collectBlob = (): Promise<Blob> =>
+    new Promise<Blob>((resolve) => {
+      if (!mediaRecorderRef.current) { resolve(new Blob()); return; }
       mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.onstop = () => {
         setTimeout(() => resolve(new Blob(chunksRef.current, { type: mimeTypeRef.current })), 100);
@@ -261,7 +262,48 @@ const KioskPage = () => {
       mediaRecorderRef.current.stop();
     });
 
+  const handleDone = async () => {
+    if (pageState !== "recording") return;
+
+    const isLast = (questionIndex + 1) >= allQuestions.length;
+
+    if (!isLast) {
+      // Collect blob synchronously, then fire upload in background and advance immediately
+      const blob = await collectBlob();
+      const capturedQId = questionId;
+      const capturedIId = interviewId;
+      const capturedMime = mimeTypeRef.current;
+      const uploadPromise = (async () => {
+        const ext = capturedMime.includes("mp4") ? "mp4" : "webm";
+        const file = new File([blob], `clip-${capturedQId}.${ext}`, { type: capturedMime });
+        const uploadResult = await uploadVideo(file);
+        await api.post(`/api/public/kiosk/${slug}/interviews/${capturedIId}/clips`, {
+          questionId: capturedQId,
+          videoUrl: uploadResult.url,
+          thumbnailUrl: uploadResult.thumbnailUrl ?? undefined,
+          duration: uploadResult.duration ?? undefined,
+        });
+      })().catch((err) => console.error("[bg upload] clip failed:", err));
+      pendingUploadsRef.current.push(uploadPromise);
+
+      const nextIndex = questionIndex + 1;
+      setQuestionId(allQuestionIds[nextIndex]);
+      setCurrentQuestion(allQuestions[nextIndex]);
+      setQuestionIndex(nextIndex);
+      chunksRef.current = [];
+      setPageState("previewing");
+      return;
+    }
+
+    // Last question: await all background uploads, then save final clip
+    setPageState("saving");
+    const blob = await collectBlob();
+
     try {
+      if (pendingUploadsRef.current.length > 0) {
+        await Promise.all(pendingUploadsRef.current);
+        pendingUploadsRef.current = [];
+      }
       const ext = mimeTypeRef.current.includes("mp4") ? "mp4" : "webm";
       const file = new File([blob], `clip-${questionId}.${ext}`, { type: mimeTypeRef.current });
       const uploadResult = await uploadVideo(file);
@@ -274,17 +316,6 @@ const KioskPage = () => {
           duration: uploadResult.duration ?? undefined,
         }
       );
-
-      const nextIndex = questionIndex + 1;
-      if (nextIndex < allQuestions.length) {
-        setQuestionId(allQuestionIds[nextIndex]);
-        setCurrentQuestion(allQuestions[nextIndex]);
-        setQuestionIndex(nextIndex);
-        chunksRef.current = [];
-        setPageState("previewing");
-        return;
-      }
-
       setCouponCode(clipResult?.couponCode ?? null);
     } catch {
       // Still show complete screen
@@ -304,8 +335,41 @@ const KioskPage = () => {
       setAllQuestions([]);
       setAllQuestionIds([]);
       setQuestionIndex(0);
+      pendingUploadsRef.current = [];
     }, 15000);
   };
+
+  // Keep ref current so the countdown timer never calls a stale handleDone
+  handleDoneRef.current = handleDone;
+
+  // Start/stop countdown timer based on recording state
+  useEffect(() => {
+    if (pageState === "recording") {
+      setCountdown(COUNTDOWN_SECONDS);
+      countdownTimerRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownTimerRef.current!);
+            countdownTimerRef.current = null;
+            handleDoneRef.current?.();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    };
+  }, [pageState]);
 
   if (pageState === "not_found") {
     return (
@@ -485,9 +549,15 @@ const KioskPage = () => {
 
           {pageState === "recording" ? (
             <div className="absolute bottom-3 left-0 right-0 flex justify-center">
-              <div className="flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 backdrop-blur-sm">
+              <div className="flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 backdrop-blur-sm">
                 <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-xs font-bold uppercase tracking-widest text-white">REC</span>
+                <span
+                  className="text-xs font-mono text-white/70 tabular-nums"
+                  style={{ color: countdown <= 10 ? "#f87171" : undefined }}
+                >
+                  {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
+                </span>
               </div>
             </div>
           ) : null}
