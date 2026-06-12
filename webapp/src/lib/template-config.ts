@@ -1,5 +1,5 @@
 export type ButtonConfig = {
-  id: "first_time" | "ace";
+  id: "first_time" | "return";
   label: string;
   questionText?: string; // legacy — use questions[] instead
   questions: string[];
@@ -39,14 +39,14 @@ export const DEFAULT_CONFIG: TemplateConfig = {
     {
       id: "first_time",
       label: "First Time",
-      questions: ["Tell us about your first PopStroke experience."],
+      questions: [],
       variant: "primary",
       enabled: true,
     },
     {
-      id: "ace",
-      label: "Ace",
-      questions: ["Congratulations! Tell us about your big shot."],
+      id: "return",
+      label: "Return Visit",
+      questions: [],
       variant: "secondary",
       enabled: true,
     },

@@ -85,7 +85,7 @@ const Index = () => {
 
   const canStart = guestName.trim().length > 0 && guestEmail.trim().length > 0;
 
-  const handleExperience = async (buttonId: "first_time" | "ace") => {
+  const handleExperience = async (buttonId: "first_time" | "return") => {
     if (pageState !== "idle" || !canStart) return;
     setError("");
     setPageState("starting");

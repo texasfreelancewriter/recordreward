@@ -147,7 +147,7 @@ const ImagePreview = ({ url }: { url: string }) => (
 
 const KioskPreview = ({ draft }: { draft: TemplateConfig }) => {
   const primaryBtn = draft.buttons.find((b) => b.id === "first_time");
-  const secondaryBtn = draft.buttons.find((b) => b.id === "ace");
+  const secondaryBtn = draft.buttons.find((b) => b.id === "return");
 
   return (
     <div
@@ -248,7 +248,7 @@ const KioskPreview = ({ draft }: { draft: TemplateConfig }) => {
             cursor: "default",
           }}
         >
-          {secondaryBtn?.label ?? "Ace"}
+          {secondaryBtn?.label ?? "Return Visit"}
         </button>
       </div>
     </div>
@@ -297,14 +297,14 @@ const Settings = () => {
     });
   }, [org?.id]);
 
-  const updateButton = (id: "first_time" | "ace", field: "label" | "questionText", value: string) => {
+  const updateButton = (id: "first_time" | "return", field: "label" | "questionText", value: string) => {
     setDraft((prev) => ({
       ...prev,
       buttons: prev.buttons.map((b) => (b.id === id ? { ...b, [field]: value } : b)),
     }));
   };
 
-  const toggleButtonEnabled = (id: "first_time" | "ace") => {
+  const toggleButtonEnabled = (id: "first_time" | "return") => {
     setDraft((prev) => ({
       ...prev,
       buttons: prev.buttons.map((b) => (b.id === id ? { ...b, enabled: b.enabled === false ? true : false } : b)),
@@ -323,7 +323,7 @@ const Settings = () => {
   };
 
   const firstTimeBtn = draft.buttons.find((b) => b.id === "first_time") ?? draft.buttons[0];
-  const aceBtn = draft.buttons.find((b) => b.id === "ace") ?? draft.buttons[1];
+  const returnBtn = draft.buttons.find((b) => b.id === "return") ?? draft.buttons[1];
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", flexDirection: "column" }}>
@@ -556,11 +556,11 @@ const Settings = () => {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.75rem", margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Ace button
+                    Return Visit button
                   </p>
                   <button
-                    onClick={() => toggleButtonEnabled("ace")}
-                    title={aceBtn.enabled === false ? "Enable button" : "Disable button"}
+                    onClick={() => toggleButtonEnabled("return")}
+                    title={returnBtn.enabled === false ? "Enable button" : "Disable button"}
                     style={{
                       position: "relative",
                       width: 40,
@@ -568,7 +568,7 @@ const Settings = () => {
                       borderRadius: 11,
                       border: "none",
                       cursor: "pointer",
-                      background: aceBtn.enabled === false ? "rgba(255,255,255,0.15)" : `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 100%)`,
+                      background: returnBtn.enabled === false ? "rgba(255,255,255,0.15)" : `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 100%)`,
                       transition: "background 0.2s",
                       flexShrink: 0,
                       padding: 0,
@@ -578,7 +578,7 @@ const Settings = () => {
                       style={{
                         position: "absolute",
                         top: 3,
-                        left: aceBtn.enabled === false ? 3 : 21,
+                        left: returnBtn.enabled === false ? 3 : 21,
                         width: 16,
                         height: 16,
                         borderRadius: "50%",
@@ -592,16 +592,16 @@ const Settings = () => {
                   <label style={labelStyle}>Button Label</label>
                   <input
                     type="text"
-                    value={aceBtn.label}
-                    onChange={(e) => updateButton("ace", "label", e.target.value)}
+                    value={returnBtn.label}
+                    onChange={(e) => updateButton("return", "label", e.target.value)}
                     style={inputStyle}
                   />
                 </div>
                 <div>
                   <label style={labelStyle}>Prompt</label>
                   <textarea
-                    value={aceBtn.questionText}
-                    onChange={(e) => updateButton("ace", "questionText", e.target.value)}
+                    value={returnBtn.questionText}
+                    onChange={(e) => updateButton("return", "questionText", e.target.value)}
                     rows={3}
                     style={{ ...inputStyle, resize: "vertical" }}
                   />
@@ -857,7 +857,7 @@ const Settings = () => {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {draft.buttons.find((b) => b.id === "ace")?.label ?? "Ace"}
+                  {draft.buttons.find((b) => b.id === "return")?.label ?? "Return Visit"}
                 </button>
               </div>
             </div>

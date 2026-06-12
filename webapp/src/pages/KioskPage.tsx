@@ -95,7 +95,7 @@ const KioskPage = () => {
 
   const canStart = guestName.trim().length > 0 && (!(config.emailEnabled ?? true) || guestEmail.trim().length > 0);
 
-  const handleExperience = async (buttonId: "first_time" | "ace") => {
+  const handleExperience = async (buttonId: "first_time" | "return") => {
     if (pageState !== "idle" || !canStart || !slug) return;
     setError("");
     setPageState("starting");

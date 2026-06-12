@@ -541,9 +541,9 @@ function SettingsTab() {
           <CardDescription>Control which buttons appear and what questions customers are asked.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-8">
-          {(["first_time", "ace"] as const).map((btnId) => {
+          {(["first_time", "return"] as const).map((btnId) => {
             const btn = draft.buttons.find((b) => b.id === btnId) ?? draft.buttons[0];
-            const btnLabel = btnId === "first_time" ? "First Time Button" : "Ace Button";
+            const btnLabel = btnId === "first_time" ? "First Time Button" : "Return Visit Button";
             const questions = btn.questions ?? [];
             return (
               <div key={btnId} className="flex flex-col gap-4">
