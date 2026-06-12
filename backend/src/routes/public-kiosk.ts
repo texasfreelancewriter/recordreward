@@ -95,6 +95,50 @@ publicKioskRouter.post(
 );
 
 publicKioskRouter.post(
+  "/:slug/interviews/:interviewId/questions",
+  zValidator(
+    "json",
+    z.object({
+      questionText: z.string().min(1),
+      category: z.enum(["post_event", "preview", "general"]),
+    })
+  ),
+  async (c) => {
+    const slug = c.req.param("slug");
+    const interviewId = c.req.param("interviewId");
+    const { questionText, category } = c.req.valid("json");
+
+    const org = await c.env.DB.prepare(
+      "SELECT id FROM Organization WHERE slug = ?"
+    ).bind(slug).first<{ id: string }>();
+    if (!org) {
+      return c.json({ error: { message: "Kiosk not found", code: "NOT_FOUND" } }, 404);
+    }
+
+    const interview = await c.env.DB.prepare(
+      "SELECT id FROM Interview WHERE id = ? AND organizationId = ?"
+    ).bind(interviewId, org.id).first<{ id: string }>();
+    if (!interview) {
+      return c.json({ error: { message: "Interview not found", code: "NOT_FOUND" } }, 404);
+    }
+
+    const countRow = await c.env.DB.prepare(
+      "SELECT COUNT(*) as count FROM InterviewQuestion WHERE interviewId = ?"
+    ).bind(interviewId).first<{ count: number }>();
+    const sortOrder = countRow?.count ?? 0;
+
+    const questionId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      "INSERT INTO InterviewQuestion (id, interviewId, questionText, category, sortOrder, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    ).bind(questionId, interviewId, questionText, category, sortOrder, now, now).run();
+
+    return c.json({ data: { questionId } });
+  }
+);
+
+publicKioskRouter.post(
   "/:slug/interviews/:interviewId/clips",
   zValidator(
     "json",

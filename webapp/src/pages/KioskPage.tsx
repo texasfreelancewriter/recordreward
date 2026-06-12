@@ -62,6 +62,8 @@ const KioskPage = () => {
   const [guestEmail, setGuestEmail] = useState("");
   const [starRating, setStarRating] = useState<number>(0);
   const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [allQuestions, setAllQuestions] = useState<string[]>([]);
+  const [questionIndex, setQuestionIndex] = useState(0);
 
   const stopCamera = useCallback(() => {
     cancelAnimationFrame(animFrameRef.current);
@@ -101,7 +103,12 @@ const KioskPage = () => {
     setPageState("starting");
 
     const btn = config.buttons.find((b) => b.id === buttonId)!;
-    const questionText = btn.questions?.[0] ?? btn.questionText ?? "";
+    const questions = (btn.questions?.length ?? 0) > 0
+      ? btn.questions
+      : btn.questionText ? [btn.questionText] : ["Tell us about your visit"];
+    const questionText = questions[0];
+    setAllQuestions(questions);
+    setQuestionIndex(0);
 
     try {
       const trimmedEmail = guestEmail.trim();
@@ -242,8 +249,6 @@ const KioskPage = () => {
       mediaRecorderRef.current.stop();
     });
 
-    stopCamera();
-
     try {
       const ext = mimeTypeRef.current.includes("mp4") ? "mp4" : "webm";
       const file = new File([blob], `clip-${questionId}.${ext}`, { type: mimeTypeRef.current });
@@ -257,11 +262,29 @@ const KioskPage = () => {
           duration: uploadResult.duration ?? undefined,
         }
       );
+
+      const nextIndex = questionIndex + 1;
+      if (nextIndex < allQuestions.length) {
+        const nextQuestionText = allQuestions[nextIndex];
+        const nextResult = await api.post<{ questionId: string }>(
+          `/api/public/kiosk/${slug}/interviews/${interviewId}/questions`,
+          { questionText: nextQuestionText, category: "general" }
+        );
+        setQuestionId(nextResult.questionId);
+        setCurrentQuestion(nextQuestionText);
+        setQuestionIndex(nextIndex);
+        chunksRef.current = [];
+        if (recordStreamRef.current) startMediaRecorder(recordStreamRef.current);
+        setPageState("previewing");
+        return;
+      }
+
       setCouponCode(clipResult?.couponCode ?? null);
     } catch {
       // Still show complete screen
     }
 
+    stopCamera();
     setPageState("complete");
     setTimeout(() => {
       setPageState("idle");
@@ -272,6 +295,8 @@ const KioskPage = () => {
       setGuestEmail("");
       setStarRating(0);
       setCouponCode(null);
+      setAllQuestions([]);
+      setQuestionIndex(0);
     }, 15000);
   };
 
@@ -424,6 +449,14 @@ const KioskPage = () => {
                   "linear-gradient(to bottom, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 65%, transparent 100%)",
               }}
             >
+              {allQuestions.length > 1 ? (
+                <p
+                  className="text-white/60 text-xs font-semibold uppercase tracking-widest text-center mb-1"
+                  style={{ textShadow: "0 1px 4px rgba(0,0,0,1)" }}
+                >
+                  Question {questionIndex + 1} of {allQuestions.length}
+                </p>
+              ) : null}
               <p
                 className="text-white text-sm font-semibold leading-snug text-center"
                 style={{ textShadow: "0 1px 6px rgba(0,0,0,1), 0 0 24px rgba(0,0,0,0.9)" }}
@@ -455,7 +488,9 @@ const KioskPage = () => {
           {pageState === "saving" ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black">
               <Loader2 className="h-8 w-8 text-white animate-spin mb-3" />
-              <p className="text-white text-sm font-semibold">Saving...</p>
+              <p className="text-white text-sm font-semibold">
+                {questionIndex < allQuestions.length - 1 ? "Next question coming up..." : "Saving..."}
+              </p>
             </div>
           ) : null}
         </div>
