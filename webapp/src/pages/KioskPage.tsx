@@ -8,7 +8,7 @@ import { getConfig, DEFAULT_CONFIG, TemplateConfig } from "@/lib/template-config
 
 type PageState = "idle" | "starting" | "previewing" | "recording" | "saving" | "complete" | "not_found";
 
-const COUNTDOWN_SECONDS = 90;
+const COUNTDOWN_SECONDS = 60;
 
 const BLUE = "#1a4f8a";
 const BLUE_LIGHT = "#2563b0";
