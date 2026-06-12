@@ -63,6 +63,7 @@ const KioskPage = () => {
   const [starRating, setStarRating] = useState<number>(0);
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [allQuestions, setAllQuestions] = useState<string[]>([]);
+  const [allQuestionIds, setAllQuestionIds] = useState<string[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
 
   const stopCamera = useCallback(() => {
@@ -126,6 +127,17 @@ const KioskPage = () => {
       setInterviewId(result.interviewId);
       setQuestionId(result.questionId);
       setCurrentQuestion(questionText);
+
+      // Register remaining questions upfront so handleDone never needs a mid-session API call
+      const allQIds = [result.questionId];
+      for (let i = 1; i < questions.length; i++) {
+        const qResult = await api.post<{ questionId: string }>(
+          `/api/public/kiosk/${slug}/interviews/${result.interviewId}/questions`,
+          { questionText: questions[i], category: "general" }
+        );
+        allQIds.push(qResult.questionId);
+      }
+      setAllQuestionIds(allQIds);
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Camera not available. Please open in a browser (not an embedded view) and ensure the page is served over HTTPS.");
@@ -265,16 +277,10 @@ const KioskPage = () => {
 
       const nextIndex = questionIndex + 1;
       if (nextIndex < allQuestions.length) {
-        const nextQuestionText = allQuestions[nextIndex];
-        const nextResult = await api.post<{ questionId: string }>(
-          `/api/public/kiosk/${slug}/interviews/${interviewId}/questions`,
-          { questionText: nextQuestionText, category: "general" }
-        );
-        setQuestionId(nextResult.questionId);
-        setCurrentQuestion(nextQuestionText);
+        setQuestionId(allQuestionIds[nextIndex]);
+        setCurrentQuestion(allQuestions[nextIndex]);
         setQuestionIndex(nextIndex);
         chunksRef.current = [];
-        if (recordStreamRef.current) startMediaRecorder(recordStreamRef.current);
         setPageState("previewing");
         return;
       }
@@ -296,6 +302,7 @@ const KioskPage = () => {
       setStarRating(0);
       setCouponCode(null);
       setAllQuestions([]);
+      setAllQuestionIds([]);
       setQuestionIndex(0);
     }, 15000);
   };
