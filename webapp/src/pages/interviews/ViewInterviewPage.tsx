@@ -14,6 +14,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { getDownloadUrl } from "@/lib/upload";
 import { Interview } from "@/types/interviews";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -234,10 +235,7 @@ export default function ViewInterviewPage() {
                 ) : (
                   <a
                     key={clip.id}
-                    href={clip.videoUrl}
-                    download={`interview-clip-${i + 1}.mp4`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={getDownloadUrl(clip.videoUrl, `clip-${i + 1}.mp4`)}
                   >
                     <Button variant="outline" size="sm" className="gap-2">
                       <Download className="h-4 w-4" />

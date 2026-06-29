@@ -250,14 +250,13 @@ app.get("/api/download", async (c) => {
     return c.json({ error: { message: "Failed to fetch file", code: "FETCH_FAILED" } }, 502);
   }
 
-  const buffer = await response.arrayBuffer();
-  const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+  const contentType = response.headers.get("content-type") ?? "video/mp4";
 
-  return new Response(buffer, {
+  // Stream the body — do not buffer, to avoid Worker memory limits on large videos
+  return new Response(response.body, {
     headers: {
       "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${filename}"`,
-      "Content-Length": String(buffer.byteLength),
     },
   });
 });
