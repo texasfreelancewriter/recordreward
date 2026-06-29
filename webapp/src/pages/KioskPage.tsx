@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, CheckCircle, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
-import { getStreamUploadUrl, uploadVideoToStream } from "@/lib/upload";
+import { uploadVideo } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import { getConfig, DEFAULT_CONFIG, TemplateConfig } from "@/lib/template-config";
 
@@ -89,10 +89,10 @@ const KioskPage = () => {
 
   const startMediaRecorder = useCallback((recordStream: MediaStream) => {
     chunksRef.current = [];
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
-      ? "video/webm;codecs=vp9,opus"
-      : MediaRecorder.isTypeSupported("video/mp4")
+    const mimeType = MediaRecorder.isTypeSupported("video/mp4")
       ? "video/mp4"
+      : MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+      ? "video/webm;codecs=vp9,opus"
       : "video/webm";
     mimeTypeRef.current = mimeType;
     const mediaRecorder = new MediaRecorder(recordStream, { mimeType });
@@ -276,11 +276,12 @@ const KioskPage = () => {
       const uploadPromise = (async () => {
         const ext = capturedMime.includes("mp4") ? "mp4" : "webm";
         const file = new File([blob], `clip-${capturedQId}.${ext}`, { type: capturedMime });
-        const { uploadUrl, downloadUrl } = await getStreamUploadUrl();
-        await uploadVideoToStream(uploadUrl, file);
+        const uploadResult = await uploadVideo(file);
         await api.post(`/api/public/kiosk/${slug}/interviews/${capturedIId}/clips`, {
           questionId: capturedQId,
-          videoUrl: downloadUrl,
+          videoUrl: uploadResult.url,
+          thumbnailUrl: uploadResult.thumbnailUrl ?? undefined,
+          duration: uploadResult.duration ?? undefined,
         });
       })().catch((err) => console.error("[bg upload] clip failed:", err));
       pendingUploadsRef.current.push(uploadPromise);
@@ -305,13 +306,14 @@ const KioskPage = () => {
       }
       const ext = mimeTypeRef.current.includes("mp4") ? "mp4" : "webm";
       const file = new File([blob], `clip-${questionId}.${ext}`, { type: mimeTypeRef.current });
-      const { uploadUrl, downloadUrl } = await getStreamUploadUrl();
-      await uploadVideoToStream(uploadUrl, file);
+      const uploadResult = await uploadVideo(file);
       const clipResult = await api.post<{ couponCode?: string | null }>(
         `/api/public/kiosk/${slug}/interviews/${interviewId}/clips`,
         {
           questionId,
-          videoUrl: downloadUrl,
+          videoUrl: uploadResult.url,
+          thumbnailUrl: uploadResult.thumbnailUrl ?? undefined,
+          duration: uploadResult.duration ?? undefined,
         }
       );
       setCouponCode(clipResult?.couponCode ?? null);

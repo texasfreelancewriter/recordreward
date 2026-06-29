@@ -11,7 +11,6 @@ import {
   User,
   Trash2,
   Download,
-  Loader2,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { getDownloadUrl } from "@/lib/upload";
@@ -223,27 +222,17 @@ export default function ViewInterviewPage() {
               )}
             </div>
             <div className="flex justify-end mt-3 gap-2">
-              {clips.map((clip, i) => {
-                const isStreamUrl = clip.videoUrl.includes("videodelivery.net");
-                const ageMs = Date.now() - new Date(clip.createdAt).getTime();
-                const isProcessing = isStreamUrl && ageMs < 2 * 60 * 1000;
-                return isProcessing ? (
-                  <Button key={clip.id} variant="outline" size="sm" className="gap-2" disabled>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Processing…
+              {clips.map((clip, i) => (
+                <a
+                  key={clip.id}
+                  href={getDownloadUrl(clip.videoUrl, `clip-${i + 1}.mp4`)}
+                >
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    {clips.length > 1 ? `Download Clip ${i + 1}` : "Download MP4"}
                   </Button>
-                ) : (
-                  <a
-                    key={clip.id}
-                    href={getDownloadUrl(clip.videoUrl, `clip-${i + 1}.mp4`)}
-                  >
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Download className="h-4 w-4" />
-                      {clips.length > 1 ? `Download Clip ${i + 1}` : "Download MP4"}
-                    </Button>
-                  </a>
-                );
-              })}
+                </a>
+              ))}
             </div>
             {currentClipIndex !== null ? (
               <div className="flex items-center justify-between mt-2 text-sm text-muted-foreground">
