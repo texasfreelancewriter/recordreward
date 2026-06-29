@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, CheckCircle, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
-import { uploadVideo } from "@/lib/upload";
+import { getStreamUploadUrl, uploadVideoToStream } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import { getConfig, DEFAULT_CONFIG, TemplateConfig } from "@/lib/template-config";
 
@@ -276,12 +276,11 @@ const KioskPage = () => {
       const uploadPromise = (async () => {
         const ext = capturedMime.includes("mp4") ? "mp4" : "webm";
         const file = new File([blob], `clip-${capturedQId}.${ext}`, { type: capturedMime });
-        const uploadResult = await uploadVideo(file);
+        const { uploadUrl, downloadUrl } = await getStreamUploadUrl();
+        await uploadVideoToStream(uploadUrl, file);
         await api.post(`/api/public/kiosk/${slug}/interviews/${capturedIId}/clips`, {
           questionId: capturedQId,
-          videoUrl: uploadResult.url,
-          thumbnailUrl: uploadResult.thumbnailUrl ?? undefined,
-          duration: uploadResult.duration ?? undefined,
+          videoUrl: downloadUrl,
         });
       })().catch((err) => console.error("[bg upload] clip failed:", err));
       pendingUploadsRef.current.push(uploadPromise);
@@ -306,14 +305,13 @@ const KioskPage = () => {
       }
       const ext = mimeTypeRef.current.includes("mp4") ? "mp4" : "webm";
       const file = new File([blob], `clip-${questionId}.${ext}`, { type: mimeTypeRef.current });
-      const uploadResult = await uploadVideo(file);
+      const { uploadUrl, downloadUrl } = await getStreamUploadUrl();
+      await uploadVideoToStream(uploadUrl, file);
       const clipResult = await api.post<{ couponCode?: string | null }>(
         `/api/public/kiosk/${slug}/interviews/${interviewId}/clips`,
         {
           questionId,
-          videoUrl: uploadResult.url,
-          thumbnailUrl: uploadResult.thumbnailUrl ?? undefined,
-          duration: uploadResult.duration ?? undefined,
+          videoUrl: downloadUrl,
         }
       );
       setCouponCode(clipResult?.couponCode ?? null);

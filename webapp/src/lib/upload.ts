@@ -46,3 +46,29 @@ export async function uploadVideo(file: File): Promise<VideoUploadResult> {
 export function getDownloadUrl(url: string, filename: string): string {
   return `${API_BASE_URL}/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
 }
+
+export interface StreamUploadResult {
+  uploadUrl: string;
+  uid: string;
+  downloadUrl: string;
+}
+
+export async function getStreamUploadUrl(): Promise<StreamUploadResult> {
+  const response = await fetch(`${API_BASE_URL}/api/upload/stream-url`, {
+    method: "POST",
+    credentials: "include",
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || "Failed to get upload URL");
+  return data.data;
+}
+
+export async function uploadVideoToStream(uploadUrl: string, file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(uploadUrl, { method: "POST", body: formData });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Stream upload failed: ${text.slice(0, 200)}`);
+  }
+}

@@ -20,5 +20,4 @@ COOKIE_DOMAIN = ".recordreward.com"
 # Secrets (not stored here — set via: wrangler secret put SECRET_NAME)
 # BETTER_AUTH_SECRET
 # RESEND_API_KEY
-# CLOUDFLARE_ACCOUNT_ID   — your Cloudflare account ID (dashboard > right sidebar)
-# CLOUDFLARE_STREAM_TOKEN — API token with Stream:Edit + Stream:Read permissions
+# CLOUDFLARE_STREAM_TOKEN — API token with Stream:Edit + Stream:Read permissions (account-level)

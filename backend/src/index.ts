@@ -148,6 +148,50 @@ app.post("/api/upload/video", async (c) => {
   }
 });
 
+// Cloudflare Stream — create a one-time direct upload URL (browser uploads straight to CF, bypassing the Worker)
+app.post("/api/upload/stream-url", async (c) => {
+  const accountId = "18c511f8336d78be6cf55574b7ebc2d7";
+  const token = c.env.CLOUDFLARE_STREAM_TOKEN;
+
+  if (!token) {
+    return c.json({ error: { message: "Stream not configured", code: "NO_STREAM_TOKEN" } }, 500);
+  }
+
+  const resp = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        maxDurationSeconds: 300,
+        requireSignedURLs: false,
+        downloadable: true,
+        meta: { name: `kiosk-clip-${Date.now()}` },
+      }),
+    }
+  );
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    console.error("[stream] Failed to create upload URL:", resp.status, text);
+    return c.json({ error: { message: "Failed to create upload URL", code: "STREAM_ERROR" } }, 500);
+  }
+
+  const json = await resp.json() as { result: { uploadURL: string; uid: string } };
+  const { uploadURL, uid } = json.result;
+
+  return c.json({
+    data: {
+      uploadUrl: uploadURL,
+      uid,
+      downloadUrl: `https://videodelivery.net/${uid}/downloads/default.mp4`,
+    },
+  });
+});
+
 // Video serve — proxies R2 object with range request support for seeking
 app.get("/api/video/:key", async (c) => {
   const key = c.req.param("key");

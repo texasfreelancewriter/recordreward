@@ -6,6 +6,7 @@ export interface Env {
   RESEND_FROM_EMAIL?: string;
   ANTHROPIC_API_KEY: string;
   COOKIE_DOMAIN?: string;
+  CLOUDFLARE_STREAM_TOKEN: string;
 }
 
 // Better Auth returns Date objects for timestamps; routes only need id/name/email
