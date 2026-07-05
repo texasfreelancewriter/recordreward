@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "https://record-reward-backend.texasfreelancewriter.workers.dev";
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "https://api.recordreward.com";
 
 class ApiError extends Error {
   constructor(message: string, public status: number, public data?: unknown) {

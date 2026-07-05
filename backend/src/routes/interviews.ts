@@ -103,23 +103,25 @@ interviewsRouter.delete("/templates/:id", async (c) => {
 
 interviewsRouter.get("/", async (c) => {
   const user = c.get("user");
+  if (!user) return c.body(null, 401);
+
   const orgId = c.req.query("orgId");
   const includeAll = c.req.query("includeAll") === "true";
 
   let resolvedOrgId: string | null = null;
 
   if (orgId) {
+    // Verify user is a member of the requested org
+    const membership = await c.env.DB.prepare(
+      "SELECT id FROM OrgMember WHERE userId = ? AND organizationId = ?"
+    ).bind(user.id, orgId).first();
+    if (!membership) return c.body(null, 403);
     resolvedOrgId = orgId;
-  } else if (user) {
+  } else {
     const membership = await c.env.DB.prepare(
       "SELECT organizationId FROM OrgMember WHERE userId = ? LIMIT 1"
     ).bind(user.id).first<{ organizationId: string }>();
     resolvedOrgId = membership?.organizationId ?? null;
-  } else {
-    const firstOrg = await c.env.DB.prepare(
-      "SELECT id FROM Organization LIMIT 1"
-    ).first<{ id: string }>();
-    resolvedOrgId = firstOrg?.id ?? null;
   }
 
   const where = resolvedOrgId

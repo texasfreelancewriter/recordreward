@@ -57,6 +57,40 @@ organizationsRouter.post(
   }
 );
 
+// PATCH /api/organizations/:id — owner-only, rename business
+organizationsRouter.patch(
+  "/:id",
+  zValidator("json", z.object({ name: z.string().min(1) })),
+  async (c) => {
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
+    }
+
+    const orgId = c.req.param("id");
+    const { name } = c.req.valid("json");
+
+    const membership = await c.env.DB.prepare(
+      "SELECT role FROM OrgMember WHERE organizationId = ? AND userId = ?"
+    ).bind(orgId, user.id).first<{ role: string }>();
+
+    if (!membership || membership.role !== "owner") {
+      return c.json({ error: { message: "Forbidden", code: "FORBIDDEN" } }, 403);
+    }
+
+    const now = new Date().toISOString();
+    await c.env.DB.prepare(
+      "UPDATE Organization SET name = ?, updatedAt = ? WHERE id = ?"
+    ).bind(name, now, orgId).run();
+
+    const org = await c.env.DB.prepare(
+      "SELECT * FROM Organization WHERE id = ?"
+    ).bind(orgId).first<DbOrganization>();
+
+    return c.json({ data: org });
+  }
+);
+
 // DELETE /api/organizations/:id — owner-only, cascades all data
 organizationsRouter.delete("/:id", async (c) => {
   const user = c.get("user");
@@ -109,16 +143,7 @@ organizationsRouter.get("/mine", async (c) => {
   const user = c.get("user");
 
   if (!user) {
-    const { results } = await c.env.DB.prepare(
-      "SELECT o.*, k.id AS kId, k.data AS kData, k.updatedAt AS kUpdatedAt FROM Organization o LEFT JOIN OrgKioskConfig k ON k.organizationId = o.id"
-    ).all<DbOrganization & { kId: string | null; kData: string | null; kUpdatedAt: string | null }>();
-
-    return c.json({
-      data: (results ?? []).map((o) => ({
-        id: o.id, name: o.name, slug: o.slug, createdAt: o.createdAt, updatedAt: o.updatedAt,
-        kioskConfig: o.kId ? { id: o.kId, organizationId: o.id, data: o.kData, updatedAt: o.kUpdatedAt } : null,
-      })),
-    });
+    return c.body(null, 401);
   }
 
   const { results: memberships } = await c.env.DB.prepare(

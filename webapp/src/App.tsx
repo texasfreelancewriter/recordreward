@@ -19,6 +19,8 @@ import KioskPage from "./pages/KioskPage";
 import CommercialProjectsPage from "./pages/commercial/CommercialProjectsPage";
 import NewCommercialPage from "./pages/commercial/NewCommercialPage";
 import CommercialProjectPage from "./pages/commercial/CommercialProjectPage";
+import Wallet from "./pages/Wallet";
+import WalletCoupon from "./pages/WalletCoupon";
 import { AuthGuard } from "./components/AuthGuard";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -49,7 +51,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<RecordRewardLanding />} />
+            <Route path="/" element={
+              window.location.hostname === "app.recordreward.com" || window.location.hostname === "record-reward-app.pages.dev"
+                ? <Navigate to="/login" replace />
+                : <RecordRewardLanding />
+            } />
             <Route path="/login" element={<Login />} />
             <Route path="/setup" element={<AuthGuard><OrgSetup /></AuthGuard>} />
             <Route path="/invite/:token" element={<AcceptInvitePage />} />
@@ -65,6 +71,8 @@ const App = () => (
             <Route path="/commercial" element={<AuthGuard><CommercialProjectsPage /></AuthGuard>} />
             <Route path="/commercial/new" element={<AuthGuard><NewCommercialPage /></AuthGuard>} />
             <Route path="/commercial/:id" element={<AuthGuard><CommercialProjectPage /></AuthGuard>} />
+            <Route path="/wallet" element={<AuthGuard><Wallet /></AuthGuard>} />
+            <Route path="/wallet/:code" element={<AuthGuard><WalletCoupon /></AuthGuard>} />
             <Route path="/kiosk-legacy" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

@@ -12,6 +12,7 @@ import { publicKioskRouter } from "./routes/public-kiosk";
 import { invitesRouter } from "./routes/invites";
 import { commercialsRouter } from "./routes/commercials";
 import { couponsRouter } from "./routes/coupons";
+import { walletRouter } from "./routes/wallet";
 
 const app = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
@@ -245,15 +246,20 @@ app.get("/api/download", async (c) => {
     return c.json({ error: { message: "URL required", code: "NO_URL" } }, 400);
   }
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    return c.json({ error: { message: "Failed to fetch file", code: "FETCH_FAILED" } }, 502);
+  // Extract R2 key from the URL (last path segment) and fetch directly — avoids Worker self-referencing sub-request
+  const key = url.split("/").pop();
+  if (!key) {
+    return c.json({ error: { message: "Invalid URL", code: "INVALID_URL" } }, 400);
   }
 
-  const contentType = response.headers.get("content-type") ?? "video/mp4";
+  const object = await c.env.VIDEOS.get(key);
+  if (!object) {
+    return c.json({ error: { message: "File not found", code: "NOT_FOUND" } }, 404);
+  }
 
-  // Stream the body — do not buffer, to avoid Worker memory limits on large videos
-  return new Response(response.body, {
+  const contentType = object.httpMetadata?.contentType ?? "video/mp4";
+
+  return new Response(object.body, {
     headers: {
       "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${filename}"`,
@@ -270,5 +276,6 @@ app.route("/api/public/kiosk", publicKioskRouter);
 app.route("/api/invites", invitesRouter);
 app.route("/api/commercials", commercialsRouter);
 app.route("/api/coupons", couponsRouter);
+app.route("/api/wallet", walletRouter);
 
 export default app;

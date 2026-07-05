@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { authClient } from "@/lib/auth-client";
+import { authClient, useSession } from "@/lib/auth-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,19 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get("redirect");
+  const { data: session, isPending } = useSession();
+
+  useEffect(() => {
+    if (!isPending && session) {
+      if (redirect) {
+        window.location.href = redirect;
+        return;
+      }
+      api.get<Array<{ id: string }>>("/api/organizations/mine").catch(() => []).then((orgs) => {
+        window.location.href = orgs && orgs.length > 0 ? "/dashboard" : "/wallet";
+      });
+    }
+  }, [isPending, session, redirect]);
 
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault();
@@ -42,8 +55,12 @@ export default function Login() {
         window.location.href = redirect;
         return;
       }
-      const org = await api.get<{ id: string } | null>("/api/organizations/mine");
-      window.location.href = org ? "/dashboard" : "/setup";
+      const orgs = await api.get<Array<{ id: string }>>("/api/organizations/mine").catch(() => []);
+      if (orgs && orgs.length > 0) {
+        window.location.href = "/dashboard";
+      } else {
+        window.location.href = "/wallet";
+      }
     } catch {
       setError("Invalid code. Please try again.");
     } finally {

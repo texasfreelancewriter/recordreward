@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Video, CheckCircle, Clock, User, Calendar, Trash2, Copy, Check, LogOut, Building2, PlusCircle, Upload, Loader2, Clapperboard, Plus, X, ShieldCheck, Gift, AlertCircle, TicketCheck, TrendingUp } from "lucide-react";
+import { Video, CheckCircle, Clock, User, Calendar, Trash2, Copy, Check, LogOut, Building2, PlusCircle, Upload, Loader2, Clapperboard, Plus, X, ShieldCheck, Gift, AlertCircle, TicketCheck, TrendingUp, Pencil, Download, ChevronDown } from "lucide-react";
 import { api } from "@/lib/api";
 import { uploadFile } from "@/lib/upload";
 import { Interview } from "@/types/interviews";
@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DeleteInterviewDialog } from "@/components/interviews/DeleteInterviewDialog";
 import { DeleteBusinessDialog } from "@/components/admin/DeleteBusinessDialog";
 import { signOut, useSession } from "@/lib/auth-client";
@@ -23,6 +24,7 @@ import {
   TemplateConfig,
   SocialMediaConfig,
 } from "@/lib/template-config";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 // ---------------------------------------------------------------------------
 // DashboardHeader
@@ -708,8 +710,23 @@ function AdminTab() {
   const { data: org } = useOrg();
   const { data: orgs, refetch } = useOrgs();
   const queryClient = useQueryClient();
+  const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string>("");
+  const [savingName, setSavingName] = useState<boolean>(false);
 
   const isOwner = org?.role === "owner";
+
+  async function handleSaveName(orgId: string) {
+    if (!editingName.trim()) return;
+    setSavingName(true);
+    try {
+      await api.patch(`/api/organizations/${orgId}`, { name: editingName.trim() });
+      await refetch();
+      setEditingOrgId(null);
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   function handleBusinessDeleted(deletedOrgId: string) {
     // If the deleted org was selected, switch to another one
@@ -770,12 +787,42 @@ function AdminTab() {
         <div className="flex flex-col gap-3">
           {orgs.map((o) => (
             <Card key={o.id} className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 shrink-0">
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{o.name}</p>
+                <div className="min-w-0 flex-1">
+                  {editingOrgId === o.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveName(o.id);
+                          if (e.key === "Escape") setEditingOrgId(null);
+                        }}
+                        className="h-7 text-sm"
+                        autoFocus
+                      />
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleSaveName(o.id)} disabled={savingName}>
+                        {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5 text-green-600" />}
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingOrgId(null)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 group/name">
+                      <p className="font-medium text-sm truncate">{o.name}</p>
+                      <button
+                        onClick={() => { setEditingOrgId(o.id); setEditingName(o.name); }}
+                        className="opacity-0 group-hover/name:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
+                        title="Rename"
+                      >
+                        <Pencil className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground truncate">/{o.slug}</p>
                 </div>
               </div>
@@ -800,6 +847,29 @@ function AdminTab() {
 // ---------------------------------------------------------------------------
 // CouponsTab
 // ---------------------------------------------------------------------------
+
+function exportCouponsCSV(coupons: CouponSummary[]) {
+  const header = "Code,Customer,Reward,Status,Issued,Expires,Redeemed";
+  const rows = coupons.map((c) =>
+    [
+      c.code,
+      c.customerName,
+      `"${c.rewardText.replace(/"/g, '""')}"`,
+      c.status,
+      new Date(c.createdAt).toLocaleDateString(),
+      new Date(c.expiresAt).toLocaleDateString(),
+      c.redeemedAt ? new Date(c.redeemedAt).toLocaleDateString() : "",
+    ].join(",")
+  );
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "coupons.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 type CouponSummary = {
   id: string;
@@ -887,21 +957,59 @@ function CouponsTab() {
         </Card>
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-2 flex-wrap">
-        {(["all", "valid", "redeemed", "expired"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${
-              filter === f
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            {f === "all" ? `All (${stats.total})` : f === "valid" ? `Active (${stats.valid})` : f === "redeemed" ? `Redeemed (${stats.redeemed})` : `Expired (${stats.expired})`}
-          </button>
-        ))}
+      {/* Chart */}
+      {stats.total > 0 ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ResponsiveContainer width="100%" height={120}>
+              <BarChart
+                data={[
+                  { name: "Active", value: stats.valid },
+                  { name: "Redeemed", value: stats.redeemed },
+                  { name: "Expired", value: stats.expired },
+                ]}
+                margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+              >
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  <Cell fill="#16a34a" />
+                  <Cell fill="#2563eb" />
+                  <Cell fill="#6b7280" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Filter + Export */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex gap-2 flex-wrap">
+          {(["all", "valid", "redeemed", "expired"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${
+                filter === f
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {f === "all" ? `All (${stats.total})` : f === "valid" ? `Active (${stats.valid})` : f === "redeemed" ? `Redeemed (${stats.redeemed})` : `Expired (${stats.expired})`}
+            </button>
+          ))}
+        </div>
+        {(data?.coupons ?? []).length > 0 ? (
+          <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => exportCouponsCSV(filtered)}>
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </Button>
+        ) : null}
       </div>
 
       {/* List */}
@@ -1149,32 +1257,39 @@ export default function Dashboard() {
       <div className="max-w-4xl mx-auto p-6">
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Manage your interviews and kiosk settings</p>
+          <div className="flex items-center gap-3 min-w-0">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            </div>
           </div>
           <DashboardHeader />
         </div>
 
-        {/* Business switcher — always visible above tabs when multiple orgs */}
-        {orgs && orgs.length > 1 ? (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {orgs.map((o) => (
-              <button
-                key={o.id}
-                onClick={() => handleOrgSwitch(o.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                  org?.id === o.id
-                    ? "bg-primary/10 border-primary/50 text-primary"
-                    : "bg-muted/40 border-border hover:bg-muted text-foreground"
-                }`}
-              >
-                <Building2 className="h-4 w-4" />
-                {o.name}
-              </button>
-            ))}
-          </div>
-        ) : null}
+        {/* Business switcher */}
+        <div className="flex items-center gap-3 mb-6">
+          <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+          {orgs && orgs.length > 1 ? (
+            <Select value={org?.id ?? ""} onValueChange={handleOrgSwitch}>
+              <SelectTrigger className="w-auto min-w-[200px] max-w-xs font-medium">
+                <SelectValue placeholder="Select a business" />
+              </SelectTrigger>
+              <SelectContent>
+                {orgs.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <span className="font-medium text-foreground">
+              {org?.name ?? <Skeleton className="h-5 w-40 inline-block" />}
+            </span>
+          )}
+          {orgs && orgs.length > 1 ? (
+            <span className="text-xs text-muted-foreground">{orgs.length} businesses</span>
+          ) : null}
+        </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-6">

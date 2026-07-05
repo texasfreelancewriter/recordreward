@@ -74,6 +74,8 @@ export async function sendCouponEmail(
     year: "numeric",
   });
 
+  const walletUrl = env.APP_BASE_URL ? `${env.APP_BASE_URL}/wallet` : "https://app.recordreward.com/wallet";
+
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
       <h2 style="color:#1a1a1a">Your reward is ready!</h2>
@@ -85,6 +87,12 @@ export async function sendCouponEmail(
         <p style="color:#1a1a1a;font-size:18px;font-weight:bold;margin:0 0 12px">${rewardText}</p>
         <p style="color:#555;font-size:13px;margin:0 0 8px">Show this code at the register:</p>
         <p style="color:#1a1a1a;font-size:28px;font-weight:bold;letter-spacing:4px;font-family:monospace;margin:0;padding:12px;background:#fff;border-radius:6px;border:2px solid #e0e0e0">${couponCode}</p>
+      </div>
+      <div style="text-align:center;margin:24px 0">
+        <a href="${walletUrl}" style="display:inline-block;padding:12px 24px;background:#1a1a1a;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">
+          View in Wallet
+        </a>
+        <p style="color:#888;font-size:13px;margin-top:8px">See all your rewards in one place — sign in with this email.</p>
       </div>
       <p style="color:#888;font-size:13px;line-height:1.5">
         This reward expires on <strong>${expireDate}</strong>. One use per customer, valid on your next visit.
@@ -106,3 +114,4 @@ export async function sendCouponEmail(
     console.log(`[email] Coupon sent to ${email} (id: ${result.data?.id})`);
   }
 }
+

@@ -97,8 +97,12 @@ couponsRouter.post("/:code/redeem", async (c) => {
   const now = new Date().toISOString();
 
   const row = await c.env.DB.prepare(
-    "SELECT id, organizationId, expiresAt, redeemedAt FROM Coupon WHERE code = ?"
-  ).bind(code).first<{ id: string; organizationId: string; expiresAt: string; redeemedAt: string | null }>();
+    `SELECT c.id, c.organizationId, c.expiresAt, c.redeemedAt
+     FROM Coupon c
+     WHERE c.code = ?`
+  ).bind(code).first<{
+    id: string; organizationId: string; expiresAt: string; redeemedAt: string | null;
+  }>();
 
   if (!row) {
     return c.json({ error: { message: "Coupon not found", code: "NOT_FOUND" } }, 404);
