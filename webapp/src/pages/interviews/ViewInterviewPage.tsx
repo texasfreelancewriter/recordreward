@@ -229,7 +229,7 @@ export default function ViewInterviewPage() {
                 >
                   <Button variant="outline" size="sm" className="gap-2">
                     <Download className="h-4 w-4" />
-                    {clips.length > 1 ? `Download Clip ${i + 1}` : "Download MP4"}
+                    {`Download Clip ${i + 1}`}
                   </Button>
                 </a>
               ))}

@@ -89,11 +89,16 @@ const KioskPage = () => {
 
   const startMediaRecorder = useCallback((recordStream: MediaStream) => {
     chunksRef.current = [];
-    const mimeType = MediaRecorder.isTypeSupported("video/mp4")
-      ? "video/mp4"
-      : MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
-      ? "video/webm;codecs=vp9,opus"
-      : "video/webm";
+    const mimeType =
+      MediaRecorder.isTypeSupported("video/mp4;codecs=h264,aac")
+        ? "video/mp4;codecs=h264,aac"
+        : MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
+        ? "video/mp4;codecs=avc1"
+        : MediaRecorder.isTypeSupported("video/mp4")
+        ? "video/mp4"
+        : MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+        ? "video/webm;codecs=vp9,opus"
+        : "video/webm";
     mimeTypeRef.current = mimeType;
     const mediaRecorder = new MediaRecorder(recordStream, { mimeType });
     mediaRecorder.ondataavailable = (e) => {
