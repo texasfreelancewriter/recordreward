@@ -68,8 +68,9 @@ export function getConfig(): TemplateConfig {
         emailEnabled: parsed.emailEnabled ?? true,
         starRatingEnabled: parsed.starRatingEnabled ?? true,
         buttons: (parsed.buttons && parsed.buttons.length > 0)
-        ? parsed.buttons.map((b) => ({
+        ? parsed.buttons.map((b, i) => ({
             ...b,
+            id: b.id ?? DEFAULT_CONFIG.buttons[i]?.id ?? b.id,
             questions: b.questions ?? (b.questionText ? [b.questionText] : []),
           }))
         : DEFAULT_CONFIG.buttons,
@@ -97,8 +98,9 @@ export async function fetchServerConfig(orgId?: string): Promise<TemplateConfig 
     const res = await fetch(url, { credentials: "include" });
     const json = await res.json();
     if (json.data) {
-      const buttons = (json.data.buttons ?? DEFAULT_CONFIG.buttons).map((b: ButtonConfig) => ({
+      const buttons = (json.data.buttons ?? DEFAULT_CONFIG.buttons).map((b: ButtonConfig, i: number) => ({
         ...b,
+        id: b.id ?? DEFAULT_CONFIG.buttons[i]?.id ?? b.id,
         questions: b.questions ?? (b.questionText ? [b.questionText] : []),
       }));
       return { ...DEFAULT_CONFIG, ...json.data, rewardEnabled: json.data.rewardEnabled ?? true, heroText: json.data.heroText ?? DEFAULT_CONFIG.heroText, emailEnabled: json.data.emailEnabled ?? true, starRatingEnabled: json.data.starRatingEnabled ?? true, buttons };

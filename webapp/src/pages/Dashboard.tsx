@@ -543,10 +543,11 @@ function SettingsTab() {
           <CardDescription>Control which buttons appear and what questions customers are asked.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-8">
-          {(["first_time", "return"] as const).map((btnId) => {
-            const btn = draft.buttons.find((b) => b.id === btnId) ?? draft.buttons[0];
+          {(["first_time", "return"] as const).map((btnId, btnIndex) => {
+            const btn = draft.buttons.find((b) => b.id === btnId) ?? draft.buttons[btnIndex] ?? draft.buttons[0];
             const btnLabel = btnId === "first_time" ? "First Time Button" : "Return Visit Button";
             const questions = btn.questions ?? [];
+            const matchBtn = (b: { id?: string }, i: number) => b.id ? b.id === btnId : i === btnIndex;
             return (
               <div key={btnId} className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
@@ -558,8 +559,8 @@ function SettingsTab() {
                     onClick={() =>
                       setDraft((prev) => ({
                         ...prev,
-                        buttons: prev.buttons.map((b) =>
-                          b.id === btnId ? { ...b, enabled: b.enabled === false ? true : false } : b
+                        buttons: prev.buttons.map((b, i) =>
+                          matchBtn(b, i) ? { ...b, enabled: b.enabled === false ? true : false } : b
                         ),
                       }))
                     }
@@ -581,8 +582,8 @@ function SettingsTab() {
                     onChange={(e) =>
                       setDraft((prev) => ({
                         ...prev,
-                        buttons: prev.buttons.map((b) =>
-                          b.id === btnId ? { ...b, label: e.target.value } : b
+                        buttons: prev.buttons.map((b, i) =>
+                          matchBtn(b, i) ? { ...b, label: e.target.value } : b
                         ),
                       }))
                     }
@@ -598,8 +599,8 @@ function SettingsTab() {
                         onChange={(e) =>
                           setDraft((prev) => ({
                             ...prev,
-                            buttons: prev.buttons.map((b) => {
-                              if (b.id !== btnId) return b;
+                            buttons: prev.buttons.map((b, i) => {
+                              if (!matchBtn(b, i)) return b;
                               const updated = [...(b.questions ?? [])];
                               updated[qIdx] = e.target.value;
                               return { ...b, questions: updated };
@@ -615,9 +616,9 @@ function SettingsTab() {
                         onClick={() =>
                           setDraft((prev) => ({
                             ...prev,
-                            buttons: prev.buttons.map((b) => {
-                              if (b.id !== btnId) return b;
-                              const updated = (b.questions ?? []).filter((_, i) => i !== qIdx);
+                            buttons: prev.buttons.map((b, i) => {
+                              if (!matchBtn(b, i)) return b;
+                              const updated = (b.questions ?? []).filter((_, qi) => qi !== qIdx);
                               return { ...b, questions: updated };
                             }),
                           }))
@@ -634,8 +635,8 @@ function SettingsTab() {
                     onClick={() =>
                       setDraft((prev) => ({
                         ...prev,
-                        buttons: prev.buttons.map((b) => {
-                          if (b.id !== btnId) return b;
+                        buttons: prev.buttons.map((b, i) => {
+                          if (!matchBtn(b, i)) return b;
                           return { ...b, questions: [...(b.questions ?? []), ""] };
                         }),
                       }))
