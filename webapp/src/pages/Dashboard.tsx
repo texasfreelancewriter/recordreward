@@ -198,6 +198,42 @@ function InterviewsTab() {
 }
 
 // ---------------------------------------------------------------------------
+// QuestionInput — isolated local state so parent re-renders can't interfere
+// ---------------------------------------------------------------------------
+
+function QuestionInput({
+  value,
+  onChange,
+  onRemove,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onRemove: () => void;
+}) {
+  const [text, setText] = useState(value);
+  return (
+    <div className="flex gap-2 items-start">
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => onChange(text)}
+        rows={2}
+        placeholder="Question shown to the customer while recording"
+        className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y"
+      />
+      <button
+        type="button"
+        onClick={onRemove}
+        className="mt-2 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+        title="Remove question"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // SettingsTab
 // ---------------------------------------------------------------------------
 
@@ -593,42 +629,31 @@ function SettingsTab() {
                 <div className="flex flex-col gap-2">
                   <Label>Questions</Label>
                   {questions.map((q, qIdx) => (
-                    <div key={qIdx} className="flex gap-2 items-start">
-                      <textarea
-                        value={q}
-                        onChange={(e) =>
-                          setDraft((prev) => ({
-                            ...prev,
-                            buttons: prev.buttons.map((b, i) => {
-                              if (!matchBtn(b, i)) return b;
-                              const updated = [...(b.questions ?? [])];
-                              updated[qIdx] = e.target.value;
-                              return { ...b, questions: updated };
-                            }),
-                          }))
-                        }
-                        rows={2}
-                        placeholder="Question shown to the customer while recording"
-                        className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setDraft((prev) => ({
-                            ...prev,
-                            buttons: prev.buttons.map((b, i) => {
-                              if (!matchBtn(b, i)) return b;
-                              const updated = (b.questions ?? []).filter((_, qi) => qi !== qIdx);
-                              return { ...b, questions: updated };
-                            }),
-                          }))
-                        }
-                        className="mt-2 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        title="Remove question"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <QuestionInput
+                      key={qIdx}
+                      value={q}
+                      onChange={(newText) =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          buttons: prev.buttons.map((b, i) => {
+                            if (!matchBtn(b, i)) return b;
+                            const updated = [...(b.questions ?? [])];
+                            updated[qIdx] = newText;
+                            return { ...b, questions: updated };
+                          }),
+                        }))
+                      }
+                      onRemove={() =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          buttons: prev.buttons.map((b, i) => {
+                            if (!matchBtn(b, i)) return b;
+                            const updated = (b.questions ?? []).filter((_, qi) => qi !== qIdx);
+                            return { ...b, questions: updated };
+                          }),
+                        }))
+                      }
+                    />
                   ))}
                   <button
                     type="button"
