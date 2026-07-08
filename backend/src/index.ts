@@ -259,10 +259,16 @@ app.get("/api/download", async (c) => {
 
   const contentType = object.httpMetadata?.contentType ?? "video/mp4";
 
+  // Match the filename extension to the actual container format so media
+  // players don't misread the codec (e.g. WebM served as .mp4 plays audio only)
+  const ext = contentType.includes("webm") ? ".webm" : ".mp4";
+  const baseName = filename.replace(/\.(mp4|webm|mov|avi)$/i, "");
+  const correctedFilename = `${baseName}${ext}`;
+
   return new Response(object.body, {
     headers: {
       "Content-Type": contentType,
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${correctedFilename}"`,
     },
   });
 });
