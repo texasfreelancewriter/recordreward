@@ -417,6 +417,7 @@ const KioskPage = () => {
           <div className="flex items-center justify-center px-6 py-4">
             <img
               src={config.logoImage}
+              crossOrigin="anonymous"
               alt="Logo"
               style={{ maxHeight: "90px", maxWidth: "100%", objectFit: "contain", display: "block" }}
             />
@@ -546,6 +547,7 @@ const KioskPage = () => {
             <div className="absolute bottom-2 right-2 z-10" style={{ pointerEvents: "none" }}>
               <img
                 src={config.logoImage}
+                crossOrigin="anonymous"
                 alt="Logo"
                 style={{ height: 36, maxWidth: 80, objectFit: "contain", opacity: 0.9 }}
               />
