@@ -16,6 +16,10 @@ import {
   Sparkles,
   Menu,
   X,
+  Store,
+  Wallet,
+  Bell,
+  Smartphone,
 } from "lucide-react";
 
 const NAV_LINKS = [
@@ -23,6 +27,7 @@ const NAV_LINKS = [
   { label: "Benefits", href: "#benefits" },
   { label: "Industries", href: "#industries" },
   { label: "Demo", href: "#demo" },
+  { label: "Wallet", href: "#wallet" },
 ];
 
 const STEPS = [
@@ -114,6 +119,33 @@ const DASHBOARD_ROWS = [
   { name: "David Park", stars: 5, loc: "Bella Vita", time: "3 hr ago", status: "APPROVED", cls: "text-green-400 bg-green-400/10" },
 ];
 
+const WALLET_CARDS = [
+  {
+    initials: "LR",
+    biz: "Los Reyes Restaurant",
+    reward: "Free Appetizer",
+    code: "THANKS-A7K2",
+    status: "Active",
+    statusCls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  },
+  {
+    initials: "BV",
+    biz: "Bella Vita Trattoria",
+    reward: "10% Off Your Order",
+    code: "THANKS-B3M9",
+    status: "Active",
+    statusCls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  },
+  {
+    initials: "CP",
+    biz: "Cedar Park Fitness",
+    reward: "Free Guest Pass",
+    code: "THANKS-C6P1",
+    status: "Used",
+    statusCls: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  },
+];
+
 export default function RecordRewardLanding() {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -163,11 +195,6 @@ export default function RecordRewardLanding() {
         <div className="max-w-6xl mx-auto px-6 py-14 relative w-full">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium px-3 py-1.5 rounded-full mb-8">
-                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-                Trusted by 1,200+ local businesses
-              </div>
-
               <h1 className="text-5xl md:text-6xl font-extrabold leading-[1.05] mb-6">
                 Turn Customer Visits Into{" "}
                 <span className="text-green-500">Video Reviews</span>{" "}
@@ -354,18 +381,6 @@ export default function RecordRewardLanding() {
                 Request a Demo
               </a>
 
-              <div className="grid grid-cols-3 gap-6 pt-8 border-t border-white/5">
-                {[
-                  { stat: "1,200+", label: "Active locations" },
-                  { stat: "40K+", label: "Reviews captured" },
-                  { stat: "92%", label: "Reward redemption" },
-                ].map(s => (
-                  <div key={s.label}>
-                    <p className="text-2xl font-black text-white mb-1">{s.stat}</p>
-                    <p className="text-gray-500 text-xs">{s.label}</p>
-                  </div>
-                ))}
-              </div>
             </div>
 
             {/* Video player mockup */}
@@ -588,6 +603,140 @@ export default function RecordRewardLanding() {
         </div>
       </section>
 
+      {/* ── Customer Wallet ─────────────────────────────────────── */}
+      <section id="wallet" className="py-14 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+
+            {/* Phone mockups */}
+            <div className="flex items-end justify-center gap-3 py-6">
+
+              {/* Phone 1 — Wallet list (dark) */}
+              <div className="w-[190px] shrink-0 bg-gray-950 rounded-[2.5rem] border border-white/10 overflow-hidden shadow-2xl">
+                <div className="bg-black h-7 flex items-center justify-center">
+                  <div className="w-20 h-1.5 bg-white/15 rounded-full" />
+                </div>
+                <div className="bg-gradient-to-b from-gray-950 to-gray-900 p-4">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-white font-bold text-xs">My Wallet</p>
+                    <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center">
+                      <Bell className="h-2.5 w-2.5 text-gray-400" />
+                    </div>
+                  </div>
+                  <p className="text-gray-500 text-[8px] mb-3">sarah@gmail.com</p>
+                  {/* Filter chips */}
+                  <div className="flex gap-1.5 mb-3 overflow-hidden">
+                    <span className="bg-white text-gray-900 text-[7px] font-bold px-2 py-0.5 rounded-full shrink-0">All (3)</span>
+                    <span className="bg-white/10 text-gray-400 text-[7px] px-2 py-0.5 rounded-full shrink-0 border border-white/10">Active</span>
+                    <span className="bg-white/10 text-gray-400 text-[7px] px-2 py-0.5 rounded-full shrink-0 border border-white/10">Used</span>
+                  </div>
+                  {/* Coupon cards */}
+                  <div className="space-y-2">
+                    {WALLET_CARDS.map(c => (
+                      <div key={c.biz} className="bg-white/5 border border-white/10 rounded-xl p-2.5 hover:bg-white/8 transition-colors">
+                        <div className="flex items-start gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 text-[6px] font-bold text-green-400">
+                            {c.initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-1">
+                              <p className="text-white text-[8px] font-semibold leading-tight truncate">{c.biz}</p>
+                              <span className={`shrink-0 text-[6px] font-bold px-1.5 py-0.5 rounded-full border ${c.statusCls}`}>
+                                {c.status}
+                              </span>
+                            </div>
+                            <p className="text-gray-400 text-[7px] mt-0.5 truncate">{c.reward}</p>
+                            <p className="text-white/50 font-mono text-[7px] tracking-wider mt-1">{c.code}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-black h-5 flex items-center justify-center">
+                  <div className="w-10 h-1 bg-white/20 rounded-full" />
+                </div>
+              </div>
+
+              {/* Phone 2 — Counter view (white), raised */}
+              <div className="w-[190px] shrink-0 bg-white rounded-[2.5rem] border border-gray-200 overflow-hidden shadow-2xl -translate-y-6">
+                <div className="bg-gray-100 h-7 flex items-center justify-center">
+                  <div className="w-20 h-1.5 bg-gray-300 rounded-full" />
+                </div>
+                <div className="p-4 flex flex-col items-center min-h-[320px] justify-center">
+                  {/* Back */}
+                  <div className="w-full flex items-center gap-1 mb-5">
+                    <ChevronRight className="h-3 w-3 text-gray-400 rotate-180" />
+                    <span className="text-gray-500 text-[8px]">Wallet</span>
+                  </div>
+                  {/* Business logo */}
+                  <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-3 shadow-sm">
+                    <span className="text-red-600 font-black text-lg">LR</span>
+                  </div>
+                  <p className="text-gray-900 font-bold text-[10px] text-center mb-0.5">Los Reyes Restaurant</p>
+                  <p className="text-gray-500 text-[8px] text-center mb-5">Free Appetizer with any order</p>
+                  {/* Big code box */}
+                  <div className="w-full border-4 border-gray-900 rounded-xl p-3 text-center mb-4">
+                    <p className="text-[7px] uppercase tracking-[0.15em] text-gray-500 mb-2">Show at the counter</p>
+                    <p className="text-xl font-black font-mono tracking-[0.15em] text-gray-900">A7K2</p>
+                  </div>
+                  {/* Status badge */}
+                  <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-[8px] font-semibold px-2 py-1 rounded-full border border-emerald-200">
+                    <Clock className="h-2 w-2" />
+                    Active · Expires in 18 days
+                  </span>
+                </div>
+                <div className="bg-gray-100 h-5 flex items-center justify-center">
+                  <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                </div>
+              </div>
+            </div>
+
+            {/* Copy */}
+            <div>
+              <span className="text-green-500 text-xs font-bold uppercase tracking-[0.2em]">Customer Wallet</span>
+              <h2 className="text-4xl md:text-5xl font-extrabold mt-3 mb-6 leading-tight">
+                Rewards Customers <span className="text-green-500">Actually Use</span>
+              </h2>
+              <p className="text-gray-400 text-lg mb-8 leading-relaxed">
+                Every reward earned goes straight into the customer's digital wallet. No paper coupons, no app download. Just a tap to redeem at the counter.
+              </p>
+              <div className="space-y-4 mb-10">
+                {[
+                  { Icon: Wallet, text: "All rewards in one place across every participating business" },
+                  { Icon: Smartphone, text: "Full-screen code display — crystal clear at the counter" },
+                  { Icon: Bell, text: "Automatic email reminders before rewards are about to expire" },
+                  { Icon: Check, text: "Works on any phone browser, no app download required" },
+                ].map(item => (
+                  <div key={item.text} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <item.Icon className="h-4 w-4 text-green-500" />
+                    </div>
+                    <p className="text-gray-300 text-sm leading-relaxed pt-1.5">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Stat row */}
+              <div className="grid grid-cols-3 gap-3 p-5 bg-[#111] border border-white/5 rounded-2xl">
+                {[
+                  { num: "30 days", label: "Coupon validity" },
+                  { num: "2×", label: "Reminder emails" },
+                  { num: "1 scan", label: "Instant redemption" },
+                ].map(s => (
+                  <div key={s.label} className="text-center">
+                    <p className="text-green-400 font-black text-xl">{s.num}</p>
+                    <p className="text-gray-500 text-[10px] uppercase tracking-wider mt-0.5">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA ─────────────────────────────────────────────────── */}
       <section className="py-16 px-6 relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-green-700/10 rounded-full blur-3xl pointer-events-none" />
@@ -626,14 +775,11 @@ export default function RecordRewardLanding() {
 
 function Logo({ small }: { small?: boolean }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className={`${small ? "w-7 h-7" : "w-8 h-8"} rounded-full bg-green-500 flex items-center justify-center`}>
-        <RefreshCw className={`${small ? "h-3.5 w-3.5" : "h-4 w-4"} text-white`} />
-      </div>
-      <span className={`font-bold text-white ${small ? "text-sm" : ""}`}>
-        Record <span className="text-green-500">Reward</span>
-      </span>
-    </div>
+    <img
+      src="/record-reward-logo.png"
+      alt="Record Reward"
+      className={small ? "h-8" : "h-10"}
+    />
   );
 }
 

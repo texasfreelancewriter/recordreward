@@ -72,7 +72,7 @@ export default function Login() {
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white">Sign In</h1>
+          <img src="/record-reward-logo.png" alt="Record Reward" className="h-20 mx-auto mb-6" />
           <p className="text-gray-400 mt-2">
             {step === "email" ? "Enter your email to get started" : `We sent a code to ${email}`}
           </p>
