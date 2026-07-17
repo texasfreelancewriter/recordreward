@@ -108,17 +108,26 @@ const KioskPage = () => {
     mediaRecorder.start(1000);
   }, []);
 
-  const canStart = guestName.trim().length > 0 && (!(config.emailEnabled ?? true) || guestEmail.trim().length > 0);
+  const isStaffMode = config.kioskMode === "staff";
+  const canStart = isStaffMode
+    ? true
+    : guestName.trim().length > 0 && (!(config.emailEnabled ?? true) || guestEmail.trim().length > 0);
 
   const handleExperience = async (buttonId: "first_time" | "return") => {
     if (pageState !== "idle" || !canStart || !slug) return;
     setError("");
     setPageState("starting");
 
-    const btn = config.buttons.find((b) => b.id === buttonId)!;
-    const questions = (btn.questions?.length ?? 0) > 0
-      ? btn.questions
-      : btn.questionText ? [btn.questionText] : ["Tell us about your visit"];
+    let questions: string[];
+    if (isStaffMode) {
+      const staffQs = (config.staffQuestions ?? []).filter((q) => q.trim());
+      questions = staffQs.length > 0 ? staffQs : ["What do you love most about working here?"];
+    } else {
+      const btn = config.buttons.find((b) => b.id === buttonId)!;
+      questions = (btn.questions?.length ?? 0) > 0
+        ? btn.questions
+        : btn.questionText ? [btn.questionText] : ["Tell us about your visit"];
+    }
     const questionText = questions[0];
     setAllQuestions(questions);
     setQuestionIndex(0);
@@ -128,11 +137,11 @@ const KioskPage = () => {
       const result = await api.post<{ interviewId: string; questionId: string }>(
         `/api/public/kiosk/${slug}/quick-start`,
         {
-          name: guestName.trim(),
-          ...(trimmedEmail ? { email: trimmedEmail } : {}),
+          name: guestName.trim() || (isStaffMode ? "Staff Member" : "Guest"),
+          ...(trimmedEmail && !isStaffMode ? { email: trimmedEmail } : {}),
           questionText,
           category: "general",
-          ...(starRating > 0 ? { starRating } : {}),
+          ...(!isStaffMode && starRating > 0 ? { starRating } : {}),
         }
       );
 
@@ -424,8 +433,8 @@ const KioskPage = () => {
           </div>
         ) : null}
 
-        {/* Rate Your Visit row — visible on idle/starting screens only when enabled */}
-        {(pageState === "idle" || pageState === "starting") ? (
+        {/* Rate Your Visit row — customer mode only, idle/starting screens */}
+        {(pageState === "idle" || pageState === "starting") && !isStaffMode ? (
           <>
             <div className="flex items-center justify-between px-5 py-2.5">
               <span
@@ -502,8 +511,10 @@ const KioskPage = () => {
                   d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9A2.25 2.25 0 0013.5 5.25h-9A2.25 2.25 0 002.25 7.5v9A2.25 2.25 0 004.5 18.75z"
                 />
               </svg>
-              <p className="text-white text-base font-bold text-center px-6">{config.heroText || "Tell Us About Your Visit"}</p>
-              {(config.rewardEnabled ?? true) ? (
+              <p className="text-white text-base font-bold text-center px-6">
+                {isStaffMode ? (config.staffHeroText || "Staff Spotlight") : (config.heroText || "Tell Us About Your Visit")}
+              </p>
+              {!isStaffMode && (config.rewardEnabled ?? true) ? (
                 <p className="text-white/50 text-xs text-center mt-1">
                   Receive a <span className="text-white/80 font-medium">{config.rewardText || "reward"}</span>
                 </p>
@@ -594,8 +605,14 @@ const KioskPage = () => {
                 <CheckCircle className="h-9 w-9 text-white" />
               </div>
             </div>
-            <h2 className="text-white text-xl font-bold mb-3">Thanks for your feedback!</h2>
-            {(config.rewardEnabled ?? true) && couponCode ? (
+            <h2 className="text-white text-xl font-bold mb-3">
+              {isStaffMode ? "Video saved!" : "Thanks for your feedback!"}
+            </h2>
+            {isStaffMode ? (
+              <p className="text-white/60 text-sm text-center leading-relaxed">
+                Your manager will review it soon.
+              </p>
+            ) : (config.rewardEnabled ?? true) && couponCode ? (
               <div className="w-full">
                 <p className="text-white/70 text-sm mb-2">{config.rewardText || "Your reward"}</p>
                 <div
@@ -612,7 +629,7 @@ const KioskPage = () => {
                 </div>
                 <p className="text-white/50 text-xs text-center">Also sent to your email · Valid for 30 days</p>
               </div>
-            ) : (config.rewardEnabled ?? true) ? (
+            ) : !isStaffMode && (config.rewardEnabled ?? true) ? (
               <p className="text-white/70 text-sm leading-relaxed">
                 Check your email for your reward
                 <br />
@@ -635,7 +652,7 @@ const KioskPage = () => {
               <>
                 <input
                   type="text"
-                  placeholder="Your name"
+                  placeholder={isStaffMode ? "Your name (optional)" : "Your name"}
                   autoComplete="off"
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
@@ -649,7 +666,7 @@ const KioskPage = () => {
                     WebkitBoxShadow: "0 0 0px 1000px rgba(255,255,255,0.93) inset",
                   }}
                 />
-                {(config.emailEnabled ?? true) ? (
+                {!isStaffMode && (config.emailEnabled ?? true) ? (
                   <input
                     type="email"
                     placeholder="Email address"
@@ -667,19 +684,34 @@ const KioskPage = () => {
                     }}
                   />
                 ) : null}
-                <div className="flex gap-3">
-                  {config.buttons.filter((btn) => btn.enabled !== false).map((btn) => (
-                    <button
-                      key={btn.id}
-                      onClick={() => handleExperience(btn.id)}
-                      disabled={pageState === "starting" || !canStart}
-                      className="flex-1 rounded-xl py-3 px-4 text-sm font-bold tracking-wide transition-all duration-200 text-white disabled:opacity-40"
-                      style={primaryStyle}
-                    >
-                      {btn.label}
-                    </button>
-                  ))}
-                </div>
+                {isStaffMode ? (
+                  <button
+                    onClick={() => handleExperience("first_time")}
+                    disabled={pageState === "starting"}
+                    className="w-full rounded-xl py-3 px-4 text-sm font-bold tracking-wide transition-all duration-200 text-white disabled:opacity-40"
+                    style={{
+                      background: "linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)",
+                      border: "2px solid rgba(255,255,255,0.5)",
+                      boxShadow: "0 4px 20px rgba(124,58,237,0.5)",
+                    }}
+                  >
+                    {pageState === "starting" ? "Starting..." : "Start Recording"}
+                  </button>
+                ) : (
+                  <div className="flex gap-3">
+                    {config.buttons.filter((btn) => btn.enabled !== false).map((btn) => (
+                      <button
+                        key={btn.id}
+                        onClick={() => handleExperience(btn.id)}
+                        disabled={pageState === "starting" || !canStart}
+                        className="flex-1 rounded-xl py-3 px-4 text-sm font-bold tracking-wide transition-all duration-200 text-white disabled:opacity-40"
+                        style={primaryStyle}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {error ? <p className="text-red-400 text-xs text-center">{error}</p> : null}
               </>
             ) : null}

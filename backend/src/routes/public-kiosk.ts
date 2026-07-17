@@ -193,18 +193,23 @@ publicKioskRouter.post(
         "UPDATE Interview SET status = ?, updatedAt = ? WHERE id = ?"
       ).bind(completedStatus, now, interviewId).run();
 
-      // Only issue coupon for non-dismissed interviews
+      // Only issue coupon for non-dismissed customer-mode interviews
       if (completedStatus !== "dismissed") {
         const configRow = await c.env.DB.prepare(
           "SELECT data FROM OrgKioskConfig WHERE organizationId = ?"
         ).bind(org.id).first<{ data: string }>();
 
         let rewardText = "";
+        let kioskMode = "customer";
         if (configRow?.data) {
           try {
-            rewardText = (JSON.parse(configRow.data) as { rewardText?: string }).rewardText ?? "";
+            const parsed = JSON.parse(configRow.data) as { rewardText?: string; kioskMode?: string };
+            rewardText = parsed.rewardText ?? "";
+            kioskMode = parsed.kioskMode ?? "customer";
           } catch { /* ignore */ }
         }
+
+        if (kioskMode === "staff") rewardText = "";
 
         if (rewardText) {
           // Enforce 30-day rate limit: one coupon per user per org per 30 days

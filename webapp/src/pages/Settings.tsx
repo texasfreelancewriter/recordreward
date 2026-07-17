@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Video, Upload, Copy, Check, LogOut } from "lucide-react";
+import { ArrowLeft, Video, Upload, Copy, Check, LogOut, Trash2, Plus } from "lucide-react";
 import { signOut } from "@/lib/auth-client";
 import { useOrg, useOrgs, setSelectedOrgId } from "@/hooks/useOrg";
 import { getConfig, saveConfig, resetConfig, DEFAULT_CONFIG, TemplateConfig, SocialMediaConfig, fetchServerConfig, saveServerConfig } from "@/lib/template-config";
@@ -467,6 +467,50 @@ const Settings = () => {
               </section>
             ) : null}
 
+            {/* Kiosk Mode toggle */}
+            <section>
+              <p style={sectionHeaderStyle}>Kiosk Mode</p>
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.75rem", marginBottom: 12 }}>
+                Switch between customer testimonials (with coupon reward) and staff content (fun team videos for social media).
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  background: "rgba(255,255,255,0.06)",
+                  borderRadius: "0.75rem",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  padding: 3,
+                  gap: 3,
+                }}
+              >
+                {(["customer", "staff"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setDraft((prev) => ({ ...prev, kioskMode: mode }))}
+                    style={{
+                      flex: 1,
+                      padding: "9px 10px",
+                      borderRadius: "0.6rem",
+                      background:
+                        draft.kioskMode === mode
+                          ? mode === "customer"
+                            ? `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 100%)`
+                            : "linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)"
+                          : "transparent",
+                      border: "none",
+                      color: draft.kioskMode === mode ? "#fff" : "rgba(255,255,255,0.45)",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {mode === "customer" ? "Customer Testimonials" : "Staff Content"}
+                  </button>
+                ))}
+              </div>
+            </section>
+
             {/* Appearance section */}
             <section>
               <p style={sectionHeaderStyle}>Appearance</p>
@@ -482,19 +526,99 @@ const Settings = () => {
                 onChange={(val) => setDraft((prev) => ({ ...prev, logoImage: val }))}
               />
 
-              <div style={{ marginBottom: 20 }}>
-                <label style={labelStyle}>Reward Text</label>
-                <input
-                  type="text"
-                  value={draft.rewardText}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, rewardText: e.target.value }))}
-                  placeholder="e.g. Free Appetizer, 10% Off, Free Dessert"
-                  style={{ ...inputStyle, opacity: draft.rewardText ? 1 : 0.7 }}
-                />
-              </div>
+              {draft.kioskMode !== "staff" ? (
+                <div style={{ marginBottom: 20 }}>
+                  <label style={labelStyle}>Reward Text</label>
+                  <input
+                    type="text"
+                    value={draft.rewardText}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, rewardText: e.target.value }))}
+                    placeholder="e.g. Free Appetizer, 10% Off, Free Dessert"
+                    style={{ ...inputStyle, opacity: draft.rewardText ? 1 : 0.7 }}
+                  />
+                </div>
+              ) : (
+                <div style={{ marginBottom: 20 }}>
+                  <label style={labelStyle}>Staff Kiosk Headline</label>
+                  <input
+                    type="text"
+                    value={draft.staffHeroText ?? "Staff Spotlight"}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, staffHeroText: e.target.value }))}
+                    placeholder="e.g. Staff Spotlight, Team Stories"
+                    style={inputStyle}
+                  />
+                </div>
+              )}
             </section>
 
-            {/* Buttons section */}
+            {/* Staff Questions section — only in staff mode */}
+            {draft.kioskMode === "staff" ? (
+              <section>
+                <p style={sectionHeaderStyle}>Staff Questions</p>
+                <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.75rem", marginBottom: 14 }}>
+                  Staff will answer these on camera. Videos go to your Interviews tab for download and posting.
+                </p>
+                {(draft.staffQuestions ?? []).map((q, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "flex-start" }}>
+                    <input
+                      type="text"
+                      value={q}
+                      onChange={(e) => {
+                        const updated = [...(draft.staffQuestions ?? [])];
+                        updated[i] = e.target.value;
+                        setDraft((prev) => ({ ...prev, staffQuestions: updated }));
+                      }}
+                      placeholder={`Question ${i + 1}`}
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button
+                      onClick={() => {
+                        const updated = (draft.staffQuestions ?? []).filter((_, j) => j !== i);
+                        setDraft((prev) => ({ ...prev, staffQuestions: updated }));
+                      }}
+                      title="Remove question"
+                      style={{
+                        flexShrink: 0,
+                        padding: "9px",
+                        borderRadius: "0.6rem",
+                        background: "rgba(248,113,113,0.1)",
+                        border: "1px solid rgba(248,113,113,0.2)",
+                        color: "rgba(248,113,113,0.7)",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => setDraft((prev) => ({ ...prev, staffQuestions: [...(prev.staffQuestions ?? []), ""] }))}
+                  style={{
+                    width: "100%",
+                    padding: "9px 14px",
+                    borderRadius: "0.75rem",
+                    background: "rgba(147,51,234,0.1)",
+                    border: "1px dashed rgba(147,51,234,0.4)",
+                    color: "rgba(167,139,250,0.9)",
+                    fontWeight: 600,
+                    fontSize: "0.8rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                  }}
+                >
+                  <Plus size={14} />
+                  Add Question
+                </button>
+              </section>
+            ) : null}
+
+            {/* Buttons section — customer mode only */}
+            {draft.kioskMode !== "staff" ? (
             <section>
               <p style={sectionHeaderStyle}>Buttons</p>
 
@@ -608,6 +732,7 @@ const Settings = () => {
                 </div>
               </div>
             </section>
+            ) : null}
 
             {/* Social Media section */}
             <section>

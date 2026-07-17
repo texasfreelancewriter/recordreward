@@ -25,6 +25,9 @@ export type TemplateConfig = {
   starRatingEnabled: boolean;
   buttons: ButtonConfig[];
   socialMedia?: SocialMediaConfig;
+  kioskMode?: "customer" | "staff";
+  staffQuestions?: string[];
+  staffHeroText?: string;
 };
 
 export const DEFAULT_CONFIG: TemplateConfig = {
@@ -35,6 +38,9 @@ export const DEFAULT_CONFIG: TemplateConfig = {
   heroText: "Tell Us About Your Visit",
   emailEnabled: true,
   starRatingEnabled: true,
+  kioskMode: "customer",
+  staffQuestions: [],
+  staffHeroText: "Staff Spotlight",
   buttons: [
     {
       id: "first_time",
@@ -67,6 +73,9 @@ export function getConfig(): TemplateConfig {
         heroText: parsed.heroText ?? DEFAULT_CONFIG.heroText,
         emailEnabled: parsed.emailEnabled ?? true,
         starRatingEnabled: parsed.starRatingEnabled ?? true,
+        kioskMode: parsed.kioskMode ?? "customer",
+        staffQuestions: parsed.staffQuestions ?? [],
+        staffHeroText: parsed.staffHeroText ?? "Staff Spotlight",
         buttons: (parsed.buttons && parsed.buttons.length > 0)
         ? parsed.buttons.map((b, i) => ({
             ...b,
@@ -103,7 +112,7 @@ export async function fetchServerConfig(orgId?: string): Promise<TemplateConfig 
         id: b.id ?? DEFAULT_CONFIG.buttons[i]?.id ?? b.id,
         questions: b.questions ?? (b.questionText ? [b.questionText] : []),
       }));
-      return { ...DEFAULT_CONFIG, ...json.data, rewardEnabled: json.data.rewardEnabled ?? true, heroText: json.data.heroText ?? DEFAULT_CONFIG.heroText, emailEnabled: json.data.emailEnabled ?? true, starRatingEnabled: json.data.starRatingEnabled ?? true, buttons };
+      return { ...DEFAULT_CONFIG, ...json.data, rewardEnabled: json.data.rewardEnabled ?? true, heroText: json.data.heroText ?? DEFAULT_CONFIG.heroText, emailEnabled: json.data.emailEnabled ?? true, starRatingEnabled: json.data.starRatingEnabled ?? true, kioskMode: json.data.kioskMode ?? "customer", staffQuestions: json.data.staffQuestions ?? [], staffHeroText: json.data.staffHeroText ?? "Staff Spotlight", buttons };
     }
     return null;
   } catch { return null; }

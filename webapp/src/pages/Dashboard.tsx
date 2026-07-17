@@ -408,6 +408,95 @@ function SettingsTab() {
         </Card>
       ) : null}
 
+      {/* Kiosk Mode */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Kiosk Mode</CardTitle>
+          <CardDescription>
+            Switch between customer testimonials (with coupon reward) and staff content (fun team videos for social media).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-1.5 p-1 rounded-lg bg-muted">
+            {(["customer", "staff"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setDraftField("kioskMode", mode)}
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-semibold transition-all ${
+                  draft.kioskMode === mode
+                    ? mode === "customer"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-purple-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {mode === "customer" ? "Customer Testimonials" : "Staff Content"}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Staff Questions — staff mode only */}
+      {draft.kioskMode === "staff" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Staff Questions</CardTitle>
+            <CardDescription>
+              Staff will answer these on camera. Videos go to your Interviews tab for download and posting.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="staffHeroText">Kiosk Headline</Label>
+              <Input
+                id="staffHeroText"
+                value={draft.staffHeroText ?? "Staff Spotlight"}
+                onChange={(e) => setDraftField("staffHeroText", e.target.value)}
+                placeholder="e.g. Staff Spotlight, Team Stories"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Questions</Label>
+              {(draft.staffQuestions ?? []).map((q, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    value={q}
+                    onChange={(e) => {
+                      const updated = [...(draft.staffQuestions ?? [])];
+                      updated[i] = e.target.value;
+                      setDraftField("staffQuestions", updated);
+                    }}
+                    placeholder={`Question ${i + 1}`}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      const updated = (draft.staffQuestions ?? []).filter((_, j) => j !== i);
+                      setDraftField("staffQuestions", updated);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setDraftField("staffQuestions", [...(draft.staffQuestions ?? []), ""])}
+                className="flex items-center gap-1.5 text-sm text-purple-600 hover:underline mt-1 w-fit"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Question
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Appearance */}
       <Card>
         <CardHeader>
@@ -493,86 +582,95 @@ function SettingsTab() {
               </div>
             ) : null}
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="heroText">Camera Screen Heading</Label>
-            <Input
-              id="heroText"
-              value={draft.heroText ?? "Tell Us About Your Visit"}
-              onChange={(e) => setDraftField("heroText", e.target.value)}
-              placeholder="Tell Us About Your Visit"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="emailEnabled">Collect Email Address</Label>
-            <button
-              id="emailEnabled"
-              type="button"
-              role="switch"
-              aria-checked={draft.emailEnabled ?? true}
-              onClick={() => setDraftField("emailEnabled", !(draft.emailEnabled ?? true))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                (draft.emailEnabled ?? true) ? "bg-primary" : "bg-muted-foreground/30"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  (draft.emailEnabled ?? true) ? "translate-x-6" : "translate-x-1"
-                }`}
+          {draft.kioskMode !== "staff" ? (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="heroText">Camera Screen Heading</Label>
+              <Input
+                id="heroText"
+                value={draft.heroText ?? "Tell Us About Your Visit"}
+                onChange={(e) => setDraftField("heroText", e.target.value)}
+                placeholder="Tell Us About Your Visit"
               />
-            </button>
-          </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="starRatingEnabled">Show Star Rating</Label>
-            <button
-              id="starRatingEnabled"
-              type="button"
-              role="switch"
-              aria-checked={draft.starRatingEnabled ?? false}
-              onClick={() => setDraftField("starRatingEnabled", !(draft.starRatingEnabled ?? false))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                (draft.starRatingEnabled ?? false) ? "bg-primary" : "bg-muted-foreground/30"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  (draft.starRatingEnabled ?? false) ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
-          <div className="flex flex-col gap-3">
+            </div>
+          ) : null}
+          {draft.kioskMode !== "staff" ? (
             <div className="flex items-center justify-between">
-              <Label htmlFor="rewardEnabled">Offer a Reward</Label>
+              <Label htmlFor="emailEnabled">Collect Email Address</Label>
               <button
-                id="rewardEnabled"
+                id="emailEnabled"
                 type="button"
                 role="switch"
-                aria-checked={draft.rewardEnabled ?? true}
-                onClick={() => setDraftField("rewardEnabled", !(draft.rewardEnabled ?? true))}
+                aria-checked={draft.emailEnabled ?? true}
+                onClick={() => setDraftField("emailEnabled", !(draft.emailEnabled ?? true))}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  (draft.rewardEnabled ?? true) ? "bg-primary" : "bg-muted-foreground/30"
+                  (draft.emailEnabled ?? true) ? "bg-primary" : "bg-muted-foreground/30"
                 }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    (draft.rewardEnabled ?? true) ? "translate-x-6" : "translate-x-1"
+                    (draft.emailEnabled ?? true) ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>
             </div>
-            {(draft.rewardEnabled ?? true) ? (
-              <Input
-                id="rewardText"
-                value={draft.rewardText}
-                onChange={(e) => setDraftField("rewardText", e.target.value)}
-                placeholder="e.g. Free Appetizer, 10% Off, Free Dessert"
-              />
-            ) : null}
-          </div>
+          ) : null}
+          {draft.kioskMode !== "staff" ? (
+            <div className="flex items-center justify-between">
+              <Label htmlFor="starRatingEnabled">Show Star Rating</Label>
+              <button
+                id="starRatingEnabled"
+                type="button"
+                role="switch"
+                aria-checked={draft.starRatingEnabled ?? false}
+                onClick={() => setDraftField("starRatingEnabled", !(draft.starRatingEnabled ?? false))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  (draft.starRatingEnabled ?? false) ? "bg-primary" : "bg-muted-foreground/30"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    (draft.starRatingEnabled ?? false) ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+          ) : null}
+          {draft.kioskMode !== "staff" ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="rewardEnabled">Offer a Reward</Label>
+                <button
+                  id="rewardEnabled"
+                  type="button"
+                  role="switch"
+                  aria-checked={draft.rewardEnabled ?? true}
+                  onClick={() => setDraftField("rewardEnabled", !(draft.rewardEnabled ?? true))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    (draft.rewardEnabled ?? true) ? "bg-primary" : "bg-muted-foreground/30"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      (draft.rewardEnabled ?? true) ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+              {(draft.rewardEnabled ?? true) ? (
+                <Input
+                  id="rewardText"
+                  value={draft.rewardText}
+                  onChange={(e) => setDraftField("rewardText", e.target.value)}
+                  placeholder="e.g. Free Appetizer, 10% Off, Free Dessert"
+                />
+              ) : null}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
-      {/* Buttons */}
+      {/* Buttons — customer mode only */}
+      {draft.kioskMode !== "staff" ? (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Kiosk Buttons & Questions</CardTitle>
@@ -677,6 +775,7 @@ function SettingsTab() {
           })}
         </CardContent>
       </Card>
+      ) : null}
 
       {/* Social Media */}
       <Card>
