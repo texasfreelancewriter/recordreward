@@ -45,4 +45,21 @@ adminRouter.get("/users", async (c) => {
   return c.json({ data: results ?? [] });
 });
 
+// DELETE /api/admin/reset-latest — delete the single most recent interview + coupon globally (test reset, no auth required)
+adminRouter.delete("/reset-latest", async (c) => {
+  const interview = await c.env.DB.prepare(
+    "SELECT id FROM Interview ORDER BY createdAt DESC LIMIT 1"
+  ).first<{ id: string }>();
+  if (!interview) return c.json({ data: { deleted: false, message: "No interviews found" } });
+
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM Coupon WHERE interviewId = ?").bind(interview.id),
+    c.env.DB.prepare("DELETE FROM InterviewClip WHERE interviewId = ?").bind(interview.id),
+    c.env.DB.prepare("DELETE FROM InterviewQuestion WHERE interviewId = ?").bind(interview.id),
+    c.env.DB.prepare("DELETE FROM Interview WHERE id = ?").bind(interview.id),
+  ]);
+
+  return c.json({ data: { deleted: true, interviewId: interview.id } });
+});
+
 export { adminRouter };
