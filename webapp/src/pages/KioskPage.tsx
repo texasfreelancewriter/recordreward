@@ -64,6 +64,7 @@ const KioskPage = () => {
   const [guestEmail, setGuestEmail] = useState("");
   const [starRating, setStarRating] = useState<number>(0);
   const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [enteredDrawing, setEnteredDrawing] = useState(false);
   const [allQuestions, setAllQuestions] = useState<string[]>([]);
   const [allQuestionIds, setAllQuestionIds] = useState<string[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -321,7 +322,7 @@ const KioskPage = () => {
       const ext = mimeTypeRef.current.includes("mp4") ? "mp4" : "webm";
       const file = new File([blob], `clip-${questionId}.${ext}`, { type: mimeTypeRef.current });
       const uploadResult = await uploadVideo(file);
-      const clipResult = await api.post<{ couponCode?: string | null }>(
+      const clipResult = await api.post<{ couponCode?: string | null; enteredDrawing?: boolean }>(
         `/api/public/kiosk/${slug}/interviews/${interviewId}/clips`,
         {
           questionId,
@@ -331,6 +332,7 @@ const KioskPage = () => {
         }
       );
       setCouponCode(clipResult?.couponCode ?? null);
+      setEnteredDrawing(clipResult?.enteredDrawing ?? false);
     } catch {
       // Still show complete screen
     }
@@ -346,6 +348,7 @@ const KioskPage = () => {
       setGuestEmail("");
       setStarRating(0);
       setCouponCode(null);
+      setEnteredDrawing(false);
       setAllQuestions([]);
       setAllQuestionIds([]);
       setQuestionIndex(0);
@@ -514,9 +517,12 @@ const KioskPage = () => {
               <p className="text-white text-base font-bold text-center px-6">
                 {isStaffMode ? (config.staffHeroText || "Staff Spotlight") : (config.heroText || "Tell Us About Your Visit")}
               </p>
-              {!isStaffMode && (config.rewardEnabled ?? true) ? (
+              {!isStaffMode && config.rewardEnabled && ((config.rewardMode ?? "instant") === "drawing" ? config.drawingPrize : config.rewardText) ? (
                 <p className="text-white/50 text-xs text-center mt-1">
-                  Receive a <span className="text-white/80 font-medium">{config.rewardText || "reward"}</span>
+                  {(config.rewardMode ?? "instant") === "drawing"
+                    ? <>Enter to win <span className="text-white/80 font-medium">{config.drawingPrize}</span></>
+                    : <>Receive a <span className="text-white/80 font-medium">{config.rewardText}</span></>
+                  }
                 </p>
               ) : null}
             </div>
@@ -612,7 +618,20 @@ const KioskPage = () => {
               <p className="text-white/60 text-sm text-center leading-relaxed">
                 Your manager will review it soon.
               </p>
-            ) : (config.rewardEnabled ?? true) && couponCode ? (
+            ) : enteredDrawing ? (
+              <div className="w-full">
+                <p className="text-white/70 text-sm mb-2 text-center">You're entered to win!</p>
+                <div
+                  className="rounded-xl px-4 py-4 mb-2"
+                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)" }}
+                >
+                  <p className="text-white text-lg font-bold text-center">
+                    {config.drawingPrize || "this month's prize"}
+                  </p>
+                </div>
+                <p className="text-white/50 text-xs text-center">Winner announced at the end of the month</p>
+              </div>
+            ) : couponCode ? (
               <div className="w-full">
                 <p className="text-white/70 text-sm mb-2">{config.rewardText || "Your reward"}</p>
                 <div
@@ -629,12 +648,6 @@ const KioskPage = () => {
                 </div>
                 <p className="text-white/50 text-xs text-center">Also sent to your email · Valid for 30 days</p>
               </div>
-            ) : !isStaffMode && (config.rewardEnabled ?? true) ? (
-              <p className="text-white/70 text-sm leading-relaxed">
-                Check your email for your reward
-                <br />
-                <span className="text-white font-semibold">{config.rewardText || "reward"}</span>
-              </p>
             ) : (
               <p className="text-white/70 text-sm">Thank you for your feedback!</p>
             )}
